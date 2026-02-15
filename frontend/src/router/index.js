@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import MainLayout from '../components/MainLayout.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Portfolios from '../views/Portfolios.vue'
 import Stocks from '../views/Stocks.vue'
@@ -20,21 +21,40 @@ const routes = [
   },
   {
     path: '/',
-    name: 'Dashboard',
-    component: Dashboard,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/portfolios',
-    name: 'Portfolios',
-    component: Portfolios,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/stocks',
-    name: 'Stocks',
-    component: Stocks,
-    meta: { requiresAuth: true }
+    component: MainLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'Dashboard',
+        component: Dashboard,
+        meta: {
+          requiresAuth: true,
+          title: 'Dashboard',
+          description: 'Overview of your investment portfolio'
+        }
+      },
+      {
+        path: 'portfolios',
+        name: 'Portfolios',
+        component: Portfolios,
+        meta: {
+          requiresAuth: true,
+          title: 'Portfolios',
+          description: 'Manage your investment accounts'
+        }
+      },
+      {
+        path: 'stocks',
+        name: 'Stocks',
+        component: Stocks,
+        meta: {
+          requiresAuth: true,
+          title: 'Stocks',
+          description: 'Browse and import stock information'
+        }
+      }
+    ]
   }
 ]
 

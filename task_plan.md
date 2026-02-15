@@ -4,7 +4,7 @@
 Build a comprehensive stock investment system with multi-account support (including 401K/IRA), stock screening (individual stocks and ETFs), investment strategy engine, historical backtesting, and simulated trading capabilities using Spring Boot backend and Vue 3 frontend.
 
 ## Current Phase
-Phase 2
+Phase 3
 
 ## Phases
 
@@ -18,22 +18,22 @@ Phase 2
 - **Status:** complete
 
 ### Phase 2: User Authentication & Account Management
-- [ ] Implement user registration and login endpoints
-- [ ] Implement JWT token generation and validation
-- [ ] Create account management endpoints (CRUD for portfolios)
-- [ ] Support multiple account types (CASH, MARGIN, IRA_TRADITIONAL, IRA_ROTH, 401K, TAXABLE)
-- [ ] Build basic frontend login/registration pages
-- [ ] Build portfolio management UI
-- **Status:** pending
+- [x] Implement user registration and login endpoints (completed in Phase 1)
+- [x] Implement JWT token generation and validation (completed in Phase 1)
+- [x] Create account management endpoints (CRUD for portfolios)
+- [x] Support multiple account types (CASH, MARGIN, IRA_TRADITIONAL, IRA_ROTH, 401K, TAXABLE)
+- [x] Build basic frontend login/registration pages
+- [x] Build portfolio management UI
+- **Status:** complete
 
 ### Phase 3: Data Collection & Stock Information
-- [ ] Integrate Yahoo Finance API for stock prices
-- [ ] Integrate Alpha Vantage API for financial data (optional)
-- [ ] Implement scheduled tasks for daily data updates
-- [ ] Create stock CRUD endpoints
-- [ ] Implement technical indicator calculation
-- [ ] Build stock search and list UI
-- **Status:** pending
+- [x] Integrate Yahoo Finance API for stock prices
+- [ ] Integrate Alpha Vantage API for financial data (optional - deferred)
+- [x] Implement scheduled tasks for daily data updates
+- [x] Create stock CRUD endpoints
+- [ ] Implement technical indicator calculation (deferred to later phase)
+- [x] Build stock search and list UI
+- **Status:** complete
 
 ### Phase 4: Holdings Import & Management
 - [ ] Implement manual holding entry

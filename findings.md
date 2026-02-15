@@ -51,6 +51,10 @@
 |-------|------------|
 | .env file was committed to git with credentials | Removed from git history using git filter-branch, added to .gitignore |
 | Git remote timeout on SSH | Switched from SSH to HTTPS (git@github.com → https://github.com) |
+| Frontend files created in backend/frontend/ | Removed backend/frontend/, ensured all frontend code in /frontend/ only - backend and frontend are separate top-level directories |
+| Missing npm packages (axios, vue-router, pinia) | Installed in correct frontend directory |
+| Backend startup failed - JWT_SECRET not found | Spring Boot doesn't auto-load .env files, exported env vars explicitly when starting |
+| Port 8080 already in use | Killed existing process on port 8080 before starting backend |
 
 ## Resources
 <!-- URLs, file paths, API references -->
@@ -64,10 +68,25 @@
 - Tailwind CSS: https://tailwindcss.com/
 - Radix Vue: https://www.radix-vue.com/
 
+## Implementation Progress
+<!-- Track what's been completed -->
+| Component | Status | Notes |
+|-----------|--------|-------|
+| MainLayout.vue | ✅ Complete | Responsive sidebar layout with mobile overlay, top bar, page title from route.meta |
+| Sidebar.vue | ✅ Complete | Navigation sections (Dashboard, Portfolio, Market, Strategy), active route highlighting, "Coming Soon" badges |
+| Router (nested routes) | ✅ Complete | MainLayout as parent with nested children (Dashboard, Portfolios, Stocks) |
+| Dashboard.vue | ✅ Complete | Simplified to show only cards (Portfolios, Stocks, Holdings) and Getting Started section |
+| Portfolios.vue | ✅ Complete | Removed navigation bar and logout handler, works within MainLayout |
+| Stocks.vue | ✅ Complete | Removed navigation bar and logout handler, works within MainLayout |
+
 ## Visual/Browser Findings
 <!-- CRITICAL: Update after every 2 view/browser operations -->
 <!-- Multimodal content must be captured as text immediately -->
-- N/A (no visual content viewed yet)
+- Referenced ~/claude/finance project for sidebar layout pattern
+- MainLayout pattern: Fixed sidebar on desktop (lg:), mobile sidebar with overlay and hamburger menu
+- Sidebar organized into sections: Dashboard (home), Portfolio (Portfolios, Holdings), Market (Stocks, Screening), Strategy (Strategies, Backtesting, Simulation)
+- Top bar shows page title/description from route.meta, username, and logout button (desktop only)
+- Mobile: Fixed header with hamburger menu, overlay sidebar that slides in from left
 
 ---
 *Update this file after every 2 view/browser/search operations*
