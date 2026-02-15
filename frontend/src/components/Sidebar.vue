@@ -40,17 +40,13 @@
           </svg>
           <span>Portfolios</span>
         </router-link>
-        <router-link
-          to="/holdings"
-          class="nav-item nav-item-disabled"
-          :class="isActive('/holdings')"
-        >
+        <div class="nav-item nav-item-disabled">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <span>Holdings</span>
           <span class="ml-auto text-xs text-gray-400">Soon</span>
-        </router-link>
+        </div>
       </div>
 
       <!-- Stock Market -->
@@ -66,55 +62,39 @@
           </svg>
           <span>Stocks</span>
         </router-link>
-        <router-link
-          to="/screening"
-          class="nav-item nav-item-disabled"
-          :class="isActive('/screening')"
-        >
+        <div class="nav-item nav-item-disabled">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
           <span>Screening</span>
           <span class="ml-auto text-xs text-gray-400">Soon</span>
-        </router-link>
+        </div>
       </div>
 
       <!-- Strategy & Backtesting -->
       <div class="space-y-1 mt-6">
         <div class="nav-section-title">Strategy</div>
-        <router-link
-          to="/strategies"
-          class="nav-item nav-item-disabled"
-          :class="isActive('/strategies')"
-        >
+        <div class="nav-item nav-item-disabled">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
           <span>Strategies</span>
           <span class="ml-auto text-xs text-gray-400">Soon</span>
-        </router-link>
-        <router-link
-          to="/backtest"
-          class="nav-item nav-item-disabled"
-          :class="isActive('/backtest')"
-        >
+        </div>
+        <div class="nav-item nav-item-disabled">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
           <span>Backtesting</span>
           <span class="ml-auto text-xs text-gray-400">Soon</span>
-        </router-link>
-        <router-link
-          to="/simulation"
-          class="nav-item nav-item-disabled"
-          :class="isActive('/simulation')"
-        >
+        </div>
+        <div class="nav-item nav-item-disabled">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Simulation</span>
           <span class="ml-auto text-xs text-gray-400">Soon</span>
-        </router-link>
+        </div>
       </div>
     </nav>
 
