@@ -70,7 +70,8 @@ public class StockDataScheduler {
                 stock.setName((String) details.getOrDefault("longName", details.get("shortName")));
                 stock.setIndustry((String) details.get("industry"));
                 stock.setSector((String) details.get("sector"));
-                stock.setMarketCap(BigDecimal.valueOf((Double) details.getOrDefault("marketCap", 0.0)));
+                Double marketCapDouble = (Double) details.getOrDefault("marketCap", 0.0);
+                stock.setMarketCap(marketCapDouble != null ? marketCapDouble.longValue() : null);
                 stock.setCurrentPrice(BigDecimal.valueOf((Double) details.getOrDefault("currentPrice", 0.0)));
                 stock.setDescription((String) details.get("description"));
 

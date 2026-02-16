@@ -28,21 +28,47 @@ public class Stock {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(name = "security_type", length = 10)
+    private String securityType = "STOCK"; // STOCK, ETF
+
     @Column(length = 10)
     private String market; // US, HK, CN
 
-    @Column(length = 100)
-    private String industry;
+    @Column(length = 50)
+    private String exchange;
 
     @Column(length = 100)
     private String sector;
 
-    @Column(name = "asset_type", length = 20)
-    private String assetType; // STOCK, ETF
+    @Column(length = 100)
+    private String industry;
 
     @Column(name = "market_cap")
-    private BigDecimal marketCap;
+    private Long marketCap;
 
+    @Column(name = "listing_date")
+    private java.time.LocalDate listingDate;
+
+    // ETF specific fields
+    @Column(name = "etf_category", length = 100)
+    private String etfCategory;
+
+    @Column(name = "etf_holdings_count")
+    private Integer etfHoldingsCount;
+
+    @Column(name = "expense_ratio", precision = 10, scale = 4)
+    private BigDecimal expenseRatio;
+
+    @Column(name = "aum")
+    private Long aum; // Assets Under Management
+
+    @Column(name = "avg_volume")
+    private Long avgVolume;
+
+    @Column(name = "dividend_yield", precision = 10, scale = 4)
+    private BigDecimal dividendYield;
+
+    // Additional fields for compatibility
     @Column(name = "current_price", precision = 10, scale = 2)
     private BigDecimal currentPrice;
 

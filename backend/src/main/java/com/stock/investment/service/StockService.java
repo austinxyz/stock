@@ -32,8 +32,8 @@ public class StockService {
         stock.setMarket(request.getMarket());
         stock.setIndustry(request.getIndustry());
         stock.setSector(request.getSector());
-        stock.setAssetType(request.getAssetType());
-        stock.setMarketCap(request.getMarketCap());
+        stock.setSecurityType(request.getSecurityType());
+        stock.setMarketCap(request.getMarketCap() != null ? request.getMarketCap().longValue() : null);
         stock.setCurrentPrice(request.getCurrentPrice());
         stock.setCurrency(request.getCurrency());
         stock.setDescription(request.getDescription());
@@ -64,8 +64,9 @@ public class StockService {
             stock.setMarket(determineMarket((String) details.get("currency")));
             stock.setIndustry((String) details.get("industry"));
             stock.setSector((String) details.get("sector"));
-            stock.setAssetType((String) details.getOrDefault("quoteType", "STOCK"));
-            stock.setMarketCap(BigDecimal.valueOf((Double) details.getOrDefault("marketCap", 0.0)));
+            stock.setSecurityType((String) details.getOrDefault("quoteType", "STOCK"));
+            Double marketCapDouble = (Double) details.getOrDefault("marketCap", 0.0);
+            stock.setMarketCap(marketCapDouble != null ? marketCapDouble.longValue() : null);
             stock.setCurrentPrice(BigDecimal.valueOf((Double) details.getOrDefault("currentPrice", 0.0)));
             stock.setCurrency((String) details.get("currency"));
             stock.setDescription((String) details.get("description"));
@@ -149,8 +150,8 @@ public class StockService {
         stock.setMarket(request.getMarket());
         stock.setIndustry(request.getIndustry());
         stock.setSector(request.getSector());
-        stock.setAssetType(request.getAssetType());
-        stock.setMarketCap(request.getMarketCap());
+        stock.setSecurityType(request.getSecurityType());
+        stock.setMarketCap(request.getMarketCap() != null ? request.getMarketCap().longValue() : null);
         stock.setCurrentPrice(request.getCurrentPrice());
         stock.setCurrency(request.getCurrency());
         stock.setDescription(request.getDescription());
