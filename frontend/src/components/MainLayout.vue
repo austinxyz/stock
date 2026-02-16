@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-screen bg-gray-50 overflow-hidden">
     <!-- Mobile Header (only visible on small screens) -->
-    <header class="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4">
+    <header class="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4">
       <!-- Menu Button -->
       <button
         @click="toggleMobileSidebar"
@@ -25,15 +25,14 @@
     <div
       v-if="showMobileSidebar"
       @click="closeMobileSidebar"
-      class="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
+      class="md:hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
     ></div>
 
     <!-- Sidebar (responsive) -->
     <aside
       :class="[
-        'fixed top-0 bottom-0 z-40 transition-transform duration-300',
-        'lg:translate-x-0 lg:static lg:block',
-        showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        'fixed top-0 bottom-0 z-40 transition-transform duration-300 md:static',
+        showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       ]"
     >
       <Sidebar @navigate="closeMobileSidebar" />
@@ -42,7 +41,7 @@
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Top Bar (desktop only) -->
-      <header class="hidden lg:block bg-white border-b border-gray-200 shadow-sm">
+      <header class="hidden md:block bg-white border-b border-gray-200 shadow-sm">
         <div class="px-6 py-4">
           <div class="flex items-center justify-between">
             <!-- Breadcrumb / Page Title -->
@@ -70,7 +69,7 @@
       </header>
 
       <!-- Main Content -->
-      <main class="flex-1 overflow-y-auto bg-gray-50 pt-14 lg:pt-0">
+      <main class="flex-1 overflow-y-auto bg-gray-50 pt-14 md:pt-0">
         <div class="container mx-auto px-4 md:px-6 py-4 md:py-6">
           <RouterView />
         </div>
