@@ -17,13 +17,13 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
 
     List<Stock> findByMarket(String market);
 
-    List<Stock> findByAssetType(String assetType);
+    List<Stock> findBySecurityType(String securityType);
 
     @Query("SELECT s FROM Stock s WHERE s.isActive = true AND " +
            "(LOWER(s.symbol) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Stock> searchByKeyword(@Param("keyword") String keyword);
 
-    @Query("SELECT s FROM Stock s WHERE s.isActive = true AND s.market = :market AND s.assetType = :assetType")
-    List<Stock> findByMarketAndAssetType(@Param("market") String market, @Param("assetType") String assetType);
+    @Query("SELECT s FROM Stock s WHERE s.isActive = true AND s.market = :market AND s.securityType = :securityType")
+    List<Stock> findByMarketAndSecurityType(@Param("market") String market, @Param("securityType") String securityType);
 }
