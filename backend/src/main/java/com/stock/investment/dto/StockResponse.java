@@ -23,6 +23,8 @@ public class StockResponse {
     private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Double currentPrice;  // Real-time price from API (not stored in DB)
+    private String currency;      // Currency for the price
 
     public static StockResponse fromEntity(Stock stock) {
         return new StockResponse(
@@ -36,7 +38,27 @@ public class StockResponse {
             stock.getMarketCap() != null ? BigDecimal.valueOf(stock.getMarketCap()) : null,
             stock.getDescription(),
             stock.getCreatedAt(),
-            stock.getUpdatedAt()
+            stock.getUpdatedAt(),
+            null,  // currentPrice - to be set separately if needed
+            null   // currency - to be set separately if needed
+        );
+    }
+
+    public static StockResponse fromEntityWithPrice(Stock stock, Double price, String currency) {
+        return new StockResponse(
+            stock.getId(),
+            stock.getSymbol(),
+            stock.getName(),
+            stock.getMarket(),
+            stock.getIndustry(),
+            stock.getSector(),
+            stock.getSecurityType(),
+            stock.getMarketCap() != null ? BigDecimal.valueOf(stock.getMarketCap()) : null,
+            stock.getDescription(),
+            stock.getCreatedAt(),
+            stock.getUpdatedAt(),
+            price,
+            currency
         );
     }
 }

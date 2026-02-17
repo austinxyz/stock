@@ -89,13 +89,17 @@
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   {{ stock.sector || '-' }}
                 </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-right">
-                  -
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-right font-medium">
+                  <span v-if="stock.currentPrice">
+                    {{ formatPrice(stock.currentPrice, stock.currency) }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
                 </td>
                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                   <button
                     @click="updatePrice(stock.symbol)"
                     class="text-indigo-600 hover:text-indigo-900 mr-4"
+                    title="Refresh price from Alpha Vantage API"
                   >
                     Refresh
                   </button>
@@ -421,10 +425,14 @@ const handleManualAdd = async () => {
 
 const updatePrice = async (symbol) => {
   try {
-    await stockAPI.updatePrice(symbol)
-    await fetchStocks()
+    const response = await stockAPI.updatePrice(symbol)
+    // Update the stock in the list with the new price data
+    const index = stocks.value.findIndex(s => s.symbol === symbol)
+    if (index !== -1) {
+      stocks.value[index] = response.data
+    }
   } catch (err) {
-    error.value = `Failed to update price for ${symbol}`
+    error.value = err.response?.data?.message || `Failed to update price for ${symbol}`
   }
 }
 
