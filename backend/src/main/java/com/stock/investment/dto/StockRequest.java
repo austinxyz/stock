@@ -17,7 +17,5 @@ public class StockRequest {
     private String sector;
     private String securityType;
     private BigDecimal marketCap;
-    private BigDecimal currentPrice;
-    private String currency;
     private String description;
 }

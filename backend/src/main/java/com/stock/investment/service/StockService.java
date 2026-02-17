@@ -34,8 +34,6 @@ public class StockService {
         stock.setSector(request.getSector());
         stock.setSecurityType(request.getSecurityType());
         stock.setMarketCap(request.getMarketCap() != null ? request.getMarketCap().longValue() : null);
-        stock.setCurrentPrice(request.getCurrentPrice());
-        stock.setCurrency(request.getCurrency());
         stock.setDescription(request.getDescription());
         stock.setIsActive(true);
 
@@ -67,9 +65,7 @@ public class StockService {
             stock.setSecurityType((String) details.getOrDefault("quoteType", "STOCK"));
             Double marketCapDouble = (Double) details.getOrDefault("marketCap", 0.0);
             stock.setMarketCap(marketCapDouble != null ? marketCapDouble.longValue() : null);
-            stock.setCurrentPrice(BigDecimal.valueOf((Double) details.getOrDefault("currentPrice", 0.0)));
-            stock.setCurrency((String) details.get("currency"));
-            stock.setDescription((String) details.get("description"));
+            stock.setDescription((String) details.get("longBusinessSummary"));
             stock.setIsActive(true);
 
             Stock savedStock = stockRepository.save(stock);
@@ -91,7 +87,7 @@ public class StockService {
 
         try {
             Map<String, Object> quote = yahooFinanceService.getQuote(symbol);
-            stock.setCurrentPrice(BigDecimal.valueOf((Double) quote.get("currentPrice")));
+            // Price updates would go to a separate price history table in production
 
             Stock updatedStock = stockRepository.save(stock);
             log.info("Updated price for stock: {}", updatedStock.getSymbol());
@@ -152,8 +148,6 @@ public class StockService {
         stock.setSector(request.getSector());
         stock.setSecurityType(request.getSecurityType());
         stock.setMarketCap(request.getMarketCap() != null ? request.getMarketCap().longValue() : null);
-        stock.setCurrentPrice(request.getCurrentPrice());
-        stock.setCurrency(request.getCurrency());
         stock.setDescription(request.getDescription());
 
         Stock updatedStock = stockRepository.save(stock);

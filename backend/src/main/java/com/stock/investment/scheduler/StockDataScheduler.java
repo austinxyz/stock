@@ -34,11 +34,12 @@ public class StockDataScheduler {
         for (Stock stock : activeStocks) {
             try {
                 Map<String, Object> quote = yahooFinanceService.getQuote(stock.getSymbol());
-                stock.setCurrentPrice(BigDecimal.valueOf((Double) quote.get("currentPrice")));
+                // Price updates would go to a separate price history table in production
+                // For now, we skip the price update since the field is removed
                 stockRepository.save(stock);
                 successCount++;
 
-                log.debug("Updated price for {}: {}", stock.getSymbol(), stock.getCurrentPrice());
+                log.debug("Checked stock {}", stock.getSymbol());
 
                 // Sleep to avoid rate limiting
                 Thread.sleep(1000);
@@ -72,8 +73,7 @@ public class StockDataScheduler {
                 stock.setSector((String) details.get("sector"));
                 Double marketCapDouble = (Double) details.getOrDefault("marketCap", 0.0);
                 stock.setMarketCap(marketCapDouble != null ? marketCapDouble.longValue() : null);
-                stock.setCurrentPrice(BigDecimal.valueOf((Double) details.getOrDefault("currentPrice", 0.0)));
-                stock.setDescription((String) details.get("description"));
+                stock.setDescription((String) details.get("longBusinessSummary"));
 
                 stockRepository.save(stock);
                 successCount++;

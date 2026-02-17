@@ -8,7 +8,13 @@
               Search and manage stock information
             </p>
           </div>
-          <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+          <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
+            <button
+              @click="showManualModal = true"
+              class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            >
+              Add Manually
+            </button>
             <button
               @click="showImportModal = true"
               class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
@@ -75,16 +81,16 @@
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span :class="[
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                    stock.assetType === 'ETF' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                    stock.securityType === 'ETF' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                   ]">
-                    {{ stock.assetType || 'STOCK' }}
+                    {{ stock.securityType || 'STOCK' }}
                   </span>
                 </td>
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   {{ stock.sector || '-' }}
                 </td>
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 text-right">
-                  {{ stock.currentPrice ? formatPrice(stock.currentPrice, stock.currency) : '-' }}
+                  -
                 </td>
                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                   <button
@@ -106,11 +112,113 @@
         </div>
     </div>
 
+    <!-- Manual Add Modal -->
+    <div v-if="showManualModal" class="fixed z-50 inset-0 overflow-y-auto">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeManualModal"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">Add Stock Manually</h3>
+            <form @submit.prevent="handleManualAdd" class="mt-6 space-y-4">
+              <div>
+                <label for="manual-symbol" class="block text-sm font-medium text-gray-700">Symbol *</label>
+                <input
+                  id="manual-symbol"
+                  v-model="manualStock.symbol"
+                  type="text"
+                  required
+                  placeholder="e.g., AAPL"
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 uppercase"
+                />
+              </div>
+              <div>
+                <label for="manual-name" class="block text-sm font-medium text-gray-700">Name *</label>
+                <input
+                  id="manual-name"
+                  v-model="manualStock.name"
+                  type="text"
+                  required
+                  placeholder="e.g., Apple Inc."
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                />
+              </div>
+              <div>
+                <label for="manual-market" class="block text-sm font-medium text-gray-700">Market *</label>
+                <select
+                  id="manual-market"
+                  v-model="manualStock.market"
+                  required
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                >
+                  <option value="">Select Market</option>
+                  <option value="US">US</option>
+                  <option value="HK">HK</option>
+                  <option value="CN">CN</option>
+                </select>
+              </div>
+              <div>
+                <label for="manual-type" class="block text-sm font-medium text-gray-700">Type</label>
+                <select
+                  id="manual-type"
+                  v-model="manualStock.securityType"
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                >
+                  <option value="STOCK">STOCK</option>
+                  <option value="ETF">ETF</option>
+                </select>
+              </div>
+              <div>
+                <label for="manual-sector" class="block text-sm font-medium text-gray-700">Sector</label>
+                <input
+                  id="manual-sector"
+                  v-model="manualStock.sector"
+                  type="text"
+                  placeholder="e.g., Technology"
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                />
+              </div>
+              <div>
+                <label for="manual-industry" class="block text-sm font-medium text-gray-700">Industry</label>
+                <input
+                  id="manual-industry"
+                  v-model="manualStock.industry"
+                  type="text"
+                  placeholder="e.g., Consumer Electronics"
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                />
+              </div>
+              <div v-if="manualError" class="text-red-600 text-sm">
+                {{ manualError }}
+              </div>
+              <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3">
+                <button
+                  type="submit"
+                  :disabled="addingManual"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 sm:col-start-2 sm:text-sm disabled:opacity-50"
+                >
+                  {{ addingManual ? 'Adding...' : 'Add Stock' }}
+                </button>
+                <button
+                  type="button"
+                  @click="closeManualModal"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:col-start-1 sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Import Modal -->
-    <div v-if="showImportModal" class="fixed z-10 inset-0 overflow-y-auto">
+    <div v-if="showImportModal" class="fixed z-50 inset-0 overflow-y-auto">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeImportModal"></div>
-        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div>
             <h3 class="text-lg font-medium text-gray-900">Import Stock from Yahoo Finance</h3>
             <form @submit.prevent="handleImport" class="mt-6 space-y-4">
@@ -122,7 +230,7 @@
                   type="text"
                   required
                   placeholder="e.g., AAPL, TSLA, QQQ"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border uppercase"
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 uppercase"
                 />
                 <p class="mt-1 text-xs text-gray-500">
                   Enter the stock symbol as listed on Yahoo Finance
@@ -154,10 +262,11 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="deleteConfirmation" class="fixed z-10 inset-0 overflow-y-auto">
+    <div v-if="deleteConfirmation" class="fixed z-50 inset-0 overflow-y-auto">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="deleteConfirmation = null"></div>
-        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div class="sm:flex sm:items-start">
             <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
               <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,6 +314,17 @@ const showImportModal = ref(false)
 const importSymbol = ref('')
 const importing = ref(false)
 const importError = ref('')
+const showManualModal = ref(false)
+const manualStock = ref({
+  symbol: '',
+  name: '',
+  market: '',
+  securityType: 'STOCK',
+  sector: '',
+  industry: ''
+})
+const addingManual = ref(false)
+const manualError = ref('')
 const deleteConfirmation = ref(null)
 const deleting = ref(false)
 
@@ -255,6 +375,19 @@ const closeImportModal = () => {
   importError.value = ''
 }
 
+const closeManualModal = () => {
+  showManualModal.value = false
+  manualStock.value = {
+    symbol: '',
+    name: '',
+    market: '',
+    securityType: 'STOCK',
+    sector: '',
+    industry: ''
+  }
+  manualError.value = ''
+}
+
 const handleImport = async () => {
   try {
     importing.value = true
@@ -266,6 +399,23 @@ const handleImport = async () => {
     importError.value = err.response?.data?.message || 'Failed to import stock'
   } finally {
     importing.value = false
+  }
+}
+
+const handleManualAdd = async () => {
+  try {
+    addingManual.value = true
+    manualError.value = ''
+    await stockAPI.create({
+      ...manualStock.value,
+      symbol: manualStock.value.symbol.toUpperCase()
+    })
+    closeManualModal()
+    await fetchStocks()
+  } catch (err) {
+    manualError.value = err.response?.data?.message || 'Failed to add stock'
+  } finally {
+    addingManual.value = false
   }
 }
 

@@ -68,13 +68,7 @@ public class Stock {
     @Column(name = "dividend_yield", precision = 10, scale = 4)
     private BigDecimal dividendYield;
 
-    // Additional fields for compatibility
-    @Column(name = "current_price", precision = 10, scale = 2)
-    private BigDecimal currentPrice;
-
-    @Column(length = 10)
-    private String currency;
-
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "is_active")

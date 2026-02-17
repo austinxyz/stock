@@ -20,8 +20,6 @@ public class StockResponse {
     private String sector;
     private String securityType;
     private BigDecimal marketCap;
-    private BigDecimal currentPrice;
-    private String currency;
     private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -36,8 +34,6 @@ public class StockResponse {
             stock.getSector(),
             stock.getSecurityType(),
             stock.getMarketCap() != null ? BigDecimal.valueOf(stock.getMarketCap()) : null,
-            stock.getCurrentPrice(),
-            stock.getCurrency(),
             stock.getDescription(),
             stock.getCreatedAt(),
             stock.getUpdatedAt()
