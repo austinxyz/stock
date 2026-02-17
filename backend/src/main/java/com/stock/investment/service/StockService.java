@@ -3,13 +3,16 @@ package com.stock.investment.service;
 import com.stock.investment.dto.StockRequest;
 import com.stock.investment.dto.StockResponse;
 import com.stock.investment.entity.Stock;
+import com.stock.investment.entity.StockPrice;
 import com.stock.investment.repository.StockRepository;
+import com.stock.investment.repository.StockPriceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +24,7 @@ public class StockService {
     private final StockRepository stockRepository;
     private final YahooFinanceService yahooFinanceService;
     private final AlphaVantageService alphaVantageService;
+    private final StockPriceRepository stockPriceRepository;
 
     /**
      * Create a new stock manually
@@ -116,6 +120,7 @@ public class StockService {
 
     /**
      * Update stock price (tries Alpha Vantage first, then Yahoo Finance)
+     * Saves price to database for historical tracking
      */
     @Transactional
     public StockResponse updateStockPrice(String symbol) {
@@ -125,12 +130,23 @@ public class StockService {
         // Try Alpha Vantage first
         try {
             Map<String, Object> quote = alphaVantageService.getQuote(symbol);
-            Double price = (Double) quote.get("currentPrice");
-            String currency = determineMarket(stock.getMarket()).equals("US") ? "USD" :
-                             determineMarket(stock.getMarket()).equals("HK") ? "HKD" : "CNY";
-            log.info("Updated price for stock {} from Alpha Vantage: {}", stock.getSymbol(), price);
-            // Note: Price updates would go to a separate price history table in production
-            return StockResponse.fromEntityWithPrice(stock, price, currency);
+            Double priceValue = (Double) quote.get("currentPrice");
+            Long volumeValue = quote.get("volume") != null ? ((Number) quote.get("volume")).longValue() : null;
+            String currency = stock.getMarket().equals("US") ? "USD" :
+                             stock.getMarket().equals("HK") ? "HKD" : "CNY";
+
+            // Save price to database
+            StockPrice stockPrice = new StockPrice();
+            stockPrice.setStockId(stock.getId());
+            stockPrice.setPrice(BigDecimal.valueOf(priceValue));
+            stockPrice.setVolume(volumeValue);
+            stockPrice.setCurrency(currency);
+            stockPrice.setSource("ALPHA_VANTAGE");
+            stockPrice.setPriceDate(LocalDateTime.now());
+            stockPriceRepository.save(stockPrice);
+
+            log.info("Saved price for stock {} from Alpha Vantage: {} {}", stock.getSymbol(), priceValue, currency);
+            return StockResponse.fromEntityWithPrice(stock, priceValue, currency);
         } catch (Exception e) {
             log.warn("Alpha Vantage price update failed for {}: {}", symbol, e.getMessage());
         }
@@ -138,10 +154,22 @@ public class StockService {
         // Fallback to Yahoo Finance
         try {
             Map<String, Object> quote = yahooFinanceService.getQuote(symbol);
-            Double price = (Double) quote.get("currentPrice");
+            Double priceValue = (Double) quote.get("currentPrice");
             String currency = (String) quote.get("currency");
-            log.info("Updated price for stock {} from Yahoo Finance: {}", stock.getSymbol(), price);
-            return StockResponse.fromEntityWithPrice(stock, price, currency);
+            Long volumeValue = quote.get("volume") != null ? ((Number) quote.get("volume")).longValue() : null;
+
+            // Save price to database
+            StockPrice stockPrice = new StockPrice();
+            stockPrice.setStockId(stock.getId());
+            stockPrice.setPrice(BigDecimal.valueOf(priceValue));
+            stockPrice.setVolume(volumeValue);
+            stockPrice.setCurrency(currency);
+            stockPrice.setSource("YAHOO_FINANCE");
+            stockPrice.setPriceDate(LocalDateTime.now());
+            stockPriceRepository.save(stockPrice);
+
+            log.info("Saved price for stock {} from Yahoo Finance: {} {}", stock.getSymbol(), priceValue, currency);
+            return StockResponse.fromEntityWithPrice(stock, priceValue, currency);
         } catch (Exception e) {
             log.error("All price update methods failed for {}: {}", symbol, e.getMessage());
             throw new RuntimeException("Failed to update stock price. API limit may be reached.");
@@ -149,39 +177,61 @@ public class StockService {
     }
 
     /**
-     * Get all active stocks
+     * Get all active stocks with latest prices
      */
     public List<StockResponse> getAllStocks() {
         return stockRepository.findByIsActiveTrue().stream()
-            .map(StockResponse::fromEntity)
+            .map(stock -> {
+                StockResponse response = StockResponse.fromEntity(stock);
+                // Get latest price from database
+                stockPriceRepository.findFirstByStockIdOrderByPriceDateDesc(stock.getId())
+                    .ifPresent(price -> {
+                        response.setCurrentPrice(price.getPrice().doubleValue());
+                        response.setCurrency(price.getCurrency());
+                    });
+                return response;
+            })
             .collect(Collectors.toList());
     }
 
     /**
-     * Get stock by ID
+     * Get stock by ID with latest price
      */
     public StockResponse getStockById(Long id) {
         Stock stock = stockRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Stock not found: " + id));
-        return StockResponse.fromEntity(stock);
+        return getStockResponseWithPrice(stock);
     }
 
     /**
-     * Get stock by symbol
+     * Get stock by symbol with latest price
      */
     public StockResponse getStockBySymbol(String symbol) {
         Stock stock = stockRepository.findBySymbol(symbol.toUpperCase())
             .orElseThrow(() -> new RuntimeException("Stock not found: " + symbol));
-        return StockResponse.fromEntity(stock);
+        return getStockResponseWithPrice(stock);
     }
 
     /**
-     * Search stocks by keyword
+     * Search stocks by keyword with latest prices
      */
     public List<StockResponse> searchStocks(String keyword) {
         return stockRepository.searchByKeyword(keyword).stream()
-            .map(StockResponse::fromEntity)
+            .map(this::getStockResponseWithPrice)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Helper method to create StockResponse with latest price
+     */
+    private StockResponse getStockResponseWithPrice(Stock stock) {
+        StockResponse response = StockResponse.fromEntity(stock);
+        stockPriceRepository.findFirstByStockIdOrderByPriceDateDesc(stock.getId())
+            .ifPresent(price -> {
+                response.setCurrentPrice(price.getPrice().doubleValue());
+                response.setCurrency(price.getCurrency());
+            });
+        return response;
     }
 
     /**
