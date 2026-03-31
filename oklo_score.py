@@ -77,3 +77,33 @@ def calc_drawdown_52w(closes):
     lookback = min(252, len(closes) - 1)
     high = closes.iloc[-lookback:-1].max()
     return float((closes.iloc[-1] - high) / high * 100)
+
+# ── 技术评分规则 ────────────────────────────────────────────────────────────────
+def score_drawdown_52w(pct):
+    """满分 15"""
+    if pct <= -50: return 15
+    if pct <= -30: return 10
+    if pct <= -15: return 5
+    return 0
+
+def score_rsi(r):
+    """满分 15"""
+    if r <= 30: return 15
+    if r <= 35: return 10
+    if r <= 45: return 5
+    return 0
+
+def score_macd(prev, now):
+    """满分 10。prev=前日柱，now=今日柱"""
+    if prev < 0 and now > 0: return 10   # 金叉
+    if now < 0 and now > prev: return 5  # 底部收窄
+    return 0
+
+def score_bb(z):
+    """满分 10"""
+    if z < -2.0: return 10
+    if z < -1.5: return 5
+    return 0
+
+def calc_tech_score(s_dd, s_rsi, s_macd, s_bb):
+    return s_dd + s_rsi + s_macd + s_bb  # 满分 50
