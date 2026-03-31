@@ -111,3 +111,68 @@ def score_bb(z):
 
 def calc_tech_score(s_dd, s_rsi, s_macd, s_bb):
     return s_dd + s_rsi + s_macd + s_bb  # 满分 50
+
+# ── 基本面数据（yfinance + SEC EDGAR）──────────────────────────────────────────
+def fetch_fundamentals():
+    """拉取基本面数据，返回 dict。失败时返回空 dict。"""
+    info = {}
+    try:
+        ticker = yf.Ticker(SYMBOL)
+        d = ticker.info
+        total_cash = d.get("totalCash") or 0
+        op_cf      = d.get("operatingCashflow") or 0
+        if op_cf < 0:
+            runway_months = (total_cash / abs(op_cf)) * 12
+        else:
+            runway_months = 999
+        info = {
+            "market_cap":         d.get("marketCap"),
+            "total_cash":         total_cash,
+            "operating_cf":       op_cf,
+            "cash_runway_months": round(runway_months, 1),
+            "analyst_target":     d.get("targetMeanPrice"),
+            "total_revenue":      d.get("totalRevenue"),
+            "updated_at":         datetime.now().strftime("%Y-%m-%d"),
+        }
+    except Exception as e:
+        print(f"  [警告] 基本面数据拉取失败: {e}")
+    return info
+
+def fetch_sec_8k(cik="0001824920", count=10):
+    """从 SEC EDGAR 拉取最近 N 条 8-K 公告。OKLO CIK: 0001824920"""
+    url = f"https://data.sec.gov/submissions/CIK{cik}.json"
+    headers = {"User-Agent": "personal-stock-tracker admin@example.com"}
+    filings = []
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        recent       = data.get("filings", {}).get("recent", {})
+        forms        = recent.get("form", [])
+        dates        = recent.get("filingDate", [])
+        accessions   = recent.get("accessionNumber", [])
+        descriptions = recent.get("primaryDocument", [])
+        for i, form in enumerate(forms):
+            if form == "8-K" and len(filings) < count:
+                acc = accessions[i].replace("-", "")
+                filing_url = (f"https://www.sec.gov/Archives/edgar/data/"
+                              f"{int(cik)}/{acc}/{descriptions[i]}")
+                filings.append({
+                    "date":  dates[i],
+                    "title": f"8-K ({dates[i]})",
+                    "url":   filing_url,
+                })
+    except Exception as e:
+        print(f"  [警告] SEC EDGAR 拉取失败: {e}")
+    return filings
+
+def load_fundamental_cache():
+    if not os.path.exists(FUNDAMENTAL_FILE):
+        return {}, []
+    with open(FUNDAMENTAL_FILE, encoding="utf-8") as f:
+        cached = json.load(f)
+    return cached.get("data", {}), cached.get("filings", [])
+
+def save_fundamental_cache(fund_data, filings):
+    with open(FUNDAMENTAL_FILE, "w", encoding="utf-8") as f:
+        json.dump({"data": fund_data, "filings": filings}, f, ensure_ascii=False, indent=2)
