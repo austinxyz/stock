@@ -6,7 +6,7 @@ OKLO 个股买入信号评分脚本
   python oklo_score.py --full   # 深度分析（重新拉取基本面 + SEC 公告）
 """
 
-import sys, io, os, csv, json, argparse
+import sys, io, os, csv, json, argparse, html as html_lib
 from datetime import datetime, timedelta
 if sys.stdout and hasattr(sys.stdout, 'buffer') and __name__ == '__main__':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -180,8 +180,10 @@ def load_fundamental_cache():
         return {}, []
 
 def save_fundamental_cache(fund_data, filings):
-    with open(FUNDAMENTAL_FILE, "w", encoding="utf-8") as f:
+    tmp_path = FUNDAMENTAL_FILE + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump({"data": fund_data, "filings": filings}, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, FUNDAMENTAL_FILE)
 
 # ── 基本面评分规则 ──────────────────────────────────────────────────────────────
 def score_cash_runway(months):
@@ -283,10 +285,12 @@ def save_csv(row: dict):
     rows = read_csv_rows()
     rows = [r for r in rows if r["date"] != row["date"]]
     rows.append(row)
-    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+    tmp_path = CSV_FILE + ".tmp"
+    with open(tmp_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
         w.writeheader()
         w.writerows(rows)
+    os.replace(tmp_path, CSV_FILE)
 
 # ── HTML 报告 ──────────────────────────────────────────────────────────────────
 def generate_html(today, price, pnl_pct, tech_score, fund_score, total_score,
@@ -403,8 +407,8 @@ def generate_html(today, price, pnl_pct, tech_score, fund_score, total_score,
 
     filings_html = "".join(
         f'<div style="padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px">'
-        f'<span style="color:#6b7280">{fl["date"]}</span>&nbsp;'
-        f'<a href="{fl["url"]}" target="_blank" style="color:#4f46e5">{fl["title"]}</a></div>'
+        f'<span style="color:#6b7280">{html_lib.escape(fl["date"])}</span>&nbsp;'
+        f'<a href="{fl["url"] if fl["url"].startswith("https://") else "#"}" target="_blank" style="color:#4f46e5">{html_lib.escape(fl["title"])}</a></div>'
         for fl in filings[:8]
     ) or '<div style="font-size:12px;color:#9ca3af">无数据（运行 --full 获取）</div>'
 
@@ -556,10 +560,16 @@ new Chart(document.getElementById('scoreChart'), {{
 def main():
     args = parse_args()
     print("\n正在拉取价格数据...")
-    df     = fetch(SYMBOL)
-    closes = df['Close'].squeeze()
-    price  = float(closes.iloc[-1])
-    today  = str(df.index[-1].date())
+    try:
+        df = fetch(SYMBOL)
+        if df.empty:
+            raise ValueError("yfinance 返回空数据，请检查 symbol 或网络连接")
+        closes = df['Close'].squeeze()
+        price  = float(closes.iloc[-1])
+        today  = str(df.index[-1].date())
+    except Exception as e:
+        print(f"[错误] 价格数据拉取失败：{e}")
+        sys.exit(1)
     pnl_pct = (price - AVG_COST) / AVG_COST * 100
 
     # 技术指标
@@ -594,7 +604,9 @@ def main():
     s_runway   = score_cash_runway(cash_runway or 0)
     s_target   = score_analyst_target(analyst_target, price)
     s_pipeline = score_pipeline(days_8k)
-    s_thesis   = score_thesis(False)
+    # TODO: 负面事件检测尚未实现，当前固定为"无负面事件"（5分）
+    # 未来可解析 SEC 8-K 标题关键词（"license denied", "contract terminated"）自动检测
+    s_thesis = score_thesis(False)
     fund_score = calc_fund_score(s_runway, s_target, s_pipeline, s_thesis)
 
     total_score = tech_score + fund_score
