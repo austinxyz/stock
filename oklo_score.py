@@ -271,3 +271,385 @@ def determine_strategy(price, tech_score, cash_runway, has_negative_event, add_b
         "add_amount": add_amount,
         "reasons": {"stop_loss": stop_reasons, "add": add_reasons, "hold": hold_reasons}
     }
+
+# ── CSV 持久化 ──────────────────────────────────────────────────────────────────
+def read_csv_rows():
+    if not os.path.exists(CSV_FILE):
+        return []
+    with open(CSV_FILE, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+def save_csv(row: dict):
+    rows = read_csv_rows()
+    rows = [r for r in rows if r["date"] != row["date"]]
+    rows.append(row)
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+
+# ── HTML 报告 ──────────────────────────────────────────────────────────────────
+def generate_html(today, price, pnl_pct, tech_score, fund_score, total_score,
+                  s_dd, s_rsi, s_macd, s_bb, dd_pct, rsi_val, bb_z,
+                  fund_data, filings, cash_runway, analyst_target, days_8k,
+                  s_runway, s_target, s_pipeline, s_thesis,
+                  strategy, add_amount, reasons):
+
+    rows = read_csv_rows()
+    rows_desc  = sorted(rows, key=lambda r: r["date"], reverse=True)
+    chart_rows = sorted(rows, key=lambda r: r["date"])[-60:]
+    chart_labels = json.dumps([r["date"] for r in chart_rows])
+    chart_tech   = json.dumps([int(r["tech_score"]) for r in chart_rows])
+    chart_total  = json.dumps([int(r["total_score"]) for r in chart_rows])
+
+    market_value  = price * SHARES
+    cost_value    = AVG_COST * SHARES
+    pnl_dollars   = market_value - cost_value
+    dist_stop_pct = (price - STOP_LOSS_PRICE) / STOP_LOSS_PRICE * 100
+    pnl_color     = "#16a34a" if pnl_pct >= 0 else "#dc2626"
+    stop_color    = "#16a34a" if price > STOP_LOSS_PRICE * 1.2 else ("#ca8a04" if price > STOP_LOSS_PRICE else "#dc2626")
+
+    strategy_colors = {"STOP_LOSS": "#dc2626", "ADD": "#16a34a", "HOLD": "#ca8a04"}
+    strategy_labels = {"STOP_LOSS": "止损", "ADD": "加仓", "HOLD": "持有"}
+
+    def score_color(s, max_s):
+        pct = s / max_s if max_s else 0
+        if pct >= 0.8: return "#16a34a"
+        if pct >= 0.6: return "#ca8a04"
+        if pct >= 0.4: return "#2563eb"
+        return "#9ca3af"
+
+    def bar(score, max_score, color):
+        pct = int(score / max_score * 100) if max_score else 0
+        return (f'<div style="display:flex;align-items:center;gap:8px">'
+                f'<div style="flex:1;background:#e5e7eb;border-radius:99px;height:6px">'
+                f'<div style="width:{pct}%;height:6px;border-radius:99px;background:{color}"></div></div>'
+                f'<span style="font-size:12px;color:#374151;min-width:40px">{score}/{max_score}</span></div>')
+
+    def reasons_list(items, color):
+        if not items:
+            return '<span style="color:#9ca3af;font-size:12px">无触发条件</span>'
+        return "".join(
+            f'<div style="font-size:12px;color:{color};margin:2px 0">• {r}</div>'
+            for r in items
+        )
+
+    tech_cards = [
+        {"name": "52周回撤", "score": s_dd, "max": 15,
+         "current": f"{dd_pct:+.1f}%", "color": "#4f46e5",
+         "why": "股价距52周高点回撤越深，相对价值越高，超跌反弹概率越大。",
+         "rules": [
+             {"cond": "≤ -50%", "pts": 15, "active": dd_pct <= -50},
+             {"cond": "≤ -30%", "pts": 10, "active": -50 < dd_pct <= -30},
+             {"cond": "≤ -15%", "pts": 5,  "active": -30 < dd_pct <= -15},
+             {"cond": "> -15%", "pts": 0,  "active": dd_pct > -15},
+         ]},
+        {"name": "RSI(14)", "score": s_rsi, "max": 15,
+         "current": f"{rsi_val:.1f}", "color": "#0891b2",
+         "why": "RSI < 30 为严重超卖，个股超卖比ETF更极端，反弹空间更大。",
+         "rules": [
+             {"cond": "≤ 30（严重超卖）", "pts": 15, "active": rsi_val <= 30},
+             {"cond": "≤ 35",             "pts": 10, "active": 30 < rsi_val <= 35},
+             {"cond": "≤ 45",             "pts": 5,  "active": 35 < rsi_val <= 45},
+             {"cond": "> 45",             "pts": 0,  "active": rsi_val > 45},
+         ]},
+        {"name": "MACD 柱", "score": s_macd, "max": 10,
+         "current": ("金叉" if s_macd == 10 else "底部收窄" if s_macd == 5 else "无信号"),
+         "color": "#16a34a",
+         "why": "MACD柱由负转正是趋势反转信号；负区收窄说明下跌动能减弱。",
+         "rules": [
+             {"cond": "负转正（金叉）", "pts": 10, "active": s_macd == 10},
+             {"cond": "负区收窄",       "pts": 5,  "active": s_macd == 5},
+             {"cond": "无信号",         "pts": 0,  "active": s_macd == 0},
+         ]},
+        {"name": "布林带 z-score", "score": s_bb, "max": 10,
+         "current": f"z = {bb_z:.2f}", "color": "#ca8a04",
+         "why": "z < -2 说明价格偏离20日均线2个标准差，均值回归概率高。",
+         "rules": [
+             {"cond": "z < -2.0", "pts": 10, "active": bb_z < -2.0},
+             {"cond": "z < -1.5", "pts": 5,  "active": -2.0 <= bb_z < -1.5},
+             {"cond": "z ≥ -1.5", "pts": 0,  "active": bb_z >= -1.5},
+         ]},
+    ]
+
+    def tech_card_html(c):
+        rules_html = "".join(
+            f'<tr style="{"background:#f0fdf4;font-weight:600;" if r["active"] else ""}">'
+            f'<td style="padding:3px 6px;color:#6b7280">{"✓ " if r["active"] else ""}{r["cond"]}</td>'
+            f'<td style="padding:3px 6px;text-align:right">{r["pts"]}分</td></tr>'
+            for r in c["rules"]
+        )
+        return f"""
+        <div style="background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <div>
+              <div style="font-size:14px;font-weight:600">{c['name']}</div>
+              <div style="font-size:12px;color:#6b7280">当前：<span style="font-weight:600;color:#374151">{c['current']}</span></div>
+            </div>
+            <div style="font-size:20px;font-weight:700;color:{c['color']}">{c['score']}<span style="font-size:11px;color:#9ca3af">/{c['max']}</span></div>
+          </div>
+          {bar(c['score'], c['max'], c['color'])}
+          <div style="margin-top:10px;font-size:12px;color:#6b7280;background:#f9fafb;border-radius:6px;padding:6px 8px">
+            <b style="color:#374151">为什么：</b>{c['why']}
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">{rules_html}</table>
+        </div>"""
+
+    tech_cards_html = "".join(tech_card_html(c) for c in tech_cards)
+
+    fund_updated = fund_data.get("updated_at", "未知")
+    runway_months_val = cash_runway or 0
+    runway_color = "#16a34a" if runway_months_val > 12 else ("#ca8a04" if runway_months_val > 6 else "#dc2626")
+
+    filings_html = "".join(
+        f'<div style="padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px">'
+        f'<span style="color:#6b7280">{fl["date"]}</span>&nbsp;'
+        f'<a href="{fl["url"]}" target="_blank" style="color:#4f46e5">{fl["title"]}</a></div>'
+        for fl in filings[:8]
+    ) or '<div style="font-size:12px;color:#9ca3af">无数据（运行 --full 获取）</div>'
+
+    def strategy_col(key, label, icon, color, rs):
+        is_active = (strategy == key)
+        bg = f"background:{color}10;border:2px solid {color};" if is_active else "background:#f9fafb;border:2px solid #e5e7eb;"
+        badge = (f'<div style="font-size:11px;font-weight:600;background:{color};color:#fff;'
+                 f'padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:8px">当前建议</div>'
+                 if is_active else '')
+        return (f'<div style="{bg}border-radius:10px;padding:18px;flex:1">'
+                f'<div style="font-size:16px;font-weight:700;color:{color if is_active else "#9ca3af"};margin-bottom:8px">{icon} {label}</div>'
+                f'{badge}{reasons_list(rs, color if is_active else "#6b7280")}</div>')
+
+    strategy_html = (f'<div style="display:flex;gap:16px;flex-wrap:wrap">'
+                     f'{strategy_col("STOP_LOSS","止损","🔴","#dc2626",reasons["stop_loss"])}'
+                     f'{strategy_col("HOLD","持有","🟡","#ca8a04",reasons["hold"])}'
+                     f'{strategy_col("ADD","加仓","🟢","#16a34a",reasons["add"])}'
+                     f'</div>')
+
+    def strat_badge(s):
+        c = {"STOP_LOSS":"#dc2626","ADD":"#16a34a","HOLD":"#ca8a04"}.get(s,"#9ca3af")
+        l = {"STOP_LOSS":"止损","ADD":"加仓","HOLD":"持有"}.get(s, s)
+        return f'<span style="background:{c};color:#fff;padding:1px 7px;border-radius:4px;font-size:11px">{l}</span>'
+
+    table_rows_html = "".join(
+        f"<tr><td>{r['date']}</td>"
+        f"<td style='font-weight:600;color:{score_color(int(r['total_score']),100)}'>{r['total_score']}</td>"
+        f"<td>{r['tech_score']}</td><td>{r['fund_score']}</td>"
+        f"<td>${float(r['price']):.2f}</td>"
+        f"<td>{strat_badge(r['strategy'])}</td></tr>"
+        for r in rows_desc
+    )
+
+    add_badge = (f'<div style="font-size:12px;color:#16a34a;margin-top:4px">建议加仓 ${add_amount:,.0f}</div>'
+                 if strategy == "ADD" else '')
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>OKLO 持仓分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  body{{font-family:-apple-system,sans-serif;background:#f9fafb;margin:0;padding:24px;color:#111}}
+  h1{{font-size:22px;font-weight:700;margin-bottom:4px}}
+  .sub{{color:#6b7280;font-size:13px;margin-bottom:20px}}
+  .cards{{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}}
+  .card{{background:#fff;border-radius:10px;padding:18px 22px;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:140px}}
+  .card .label{{font-size:11px;color:#6b7280;margin-bottom:4px}}
+  .card .val{{font-size:26px;font-weight:700}}
+  .section{{font-size:15px;font-weight:600;margin:20px 0 10px}}
+  .ind-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px}}
+  .chart-box{{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px}}
+  table{{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}}
+  th{{background:#f3f4f6;padding:9px 12px;text-align:left;font-size:12px;color:#374151}}
+  td{{padding:8px 12px;font-size:13px;border-top:1px solid #f3f4f6}}
+  tr:hover td{{background:#fafafa}}
+</style>
+</head>
+<body>
+<h1>OKLO 持仓分析</h1>
+<div class="sub">更新时间：{today} &nbsp;·&nbsp; {SHARES}股 @ 成本 ${AVG_COST}</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">综合评分</div>
+    <div class="val" style="color:{score_color(total_score,100)}">{total_score}<span style="font-size:14px;color:#9ca3af">/100</span></div>
+    <div style="font-size:11px;color:#6b7280;margin-top:4px">技术 {tech_score}/50 · 基本面 {fund_score}/50</div>
+  </div>
+  <div class="card">
+    <div class="label">现价</div>
+    <div class="val">${price:.2f}</div>
+  </div>
+  <div class="card">
+    <div class="label">持仓浮亏/盈</div>
+    <div class="val" style="color:{pnl_color}">{"▲" if pnl_pct>=0 else "▼"}{abs(pnl_pct):.1f}%</div>
+    <div style="font-size:11px;color:{pnl_color}">${pnl_dollars:+,.0f}</div>
+  </div>
+  <div class="card">
+    <div class="label">止损线</div>
+    <div class="val" style="color:{stop_color}">${STOP_LOSS_PRICE}</div>
+    <div style="font-size:11px;color:{stop_color}">距离 {dist_stop_pct:+.1f}%</div>
+  </div>
+  <div class="card">
+    <div class="label">策略建议</div>
+    <div style="margin-top:10px;font-size:18px;font-weight:700;color:{strategy_colors.get(strategy,'#9ca3af')}">{strategy_labels.get(strategy,strategy)}</div>
+    {add_badge}
+  </div>
+  <div class="card">
+    <div class="label">现金跑道</div>
+    <div class="val" style="color:{runway_color}">{f'{cash_runway:.0f}月' if cash_runway else 'N/A'}</div>
+  </div>
+</div>
+
+<div class="section">策略建议详情</div>
+{strategy_html}
+
+<div class="section">技术指标详情</div>
+<div class="ind-grid">{tech_cards_html}</div>
+
+<div class="section">基本面详情 <span style="font-size:12px;font-weight:400;color:#9ca3af">（上次更新：{fund_updated}）</span></div>
+<div style="background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">财务指标</div>
+    <table style="box-shadow:none">
+      <tr><td style="color:#6b7280;border:none;padding:5px 0">现金跑道</td><td style="font-weight:600;color:{runway_color};border:none;padding:5px 0">{f'{cash_runway:.1f} 个月' if cash_runway else 'N/A'}</td></tr>
+      <tr><td style="color:#6b7280;padding:5px 0">分析师目标价</td><td style="font-weight:600;padding:5px 0">{f'${analyst_target:.2f}' if analyst_target else 'N/A'}</td></tr>
+      <tr><td style="color:#6b7280;padding:5px 0">总现金</td><td style="font-weight:600;padding:5px 0">{f'${fund_data.get("total_cash",0)/1e6:.0f}M' if fund_data.get("total_cash") else 'N/A'}</td></tr>
+      <tr><td style="color:#6b7280;padding:5px 0">经营现金流</td><td style="font-weight:600;padding:5px 0">{f'${fund_data.get("operating_cf",0)/1e6:.0f}M' if fund_data.get("operating_cf") else 'N/A'}</td></tr>
+    </table>
+  </div>
+  <div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">近期 SEC 8-K 公告</div>
+    {filings_html}
+  </div>
+</div>
+
+<div class="chart-box">
+  <div style="font-size:14px;font-weight:600;margin-bottom:12px">历史评分走势</div>
+  <canvas id="scoreChart" height="80"></canvas>
+</div>
+
+<div class="section">历史记录</div>
+<table>
+<thead><tr><th>日期</th><th>总分</th><th>技术分</th><th>基本面分</th><th>价格</th><th>策略</th></tr></thead>
+<tbody>{table_rows_html}</tbody>
+</table>
+
+<script>
+new Chart(document.getElementById('scoreChart'), {{
+  type: 'line',
+  data: {{
+    labels: {chart_labels},
+    datasets: [
+      {{label:'综合评分',data:{chart_total},borderColor:'#4f46e5',backgroundColor:'rgba(79,70,229,0.08)',fill:true,tension:0.3,pointRadius:3,borderWidth:2}},
+      {{label:'技术评分',data:{chart_tech},borderColor:'#0891b2',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5,borderDash:[4,3]}},
+      {{label:'买入门槛(总分60)',data:Array({len(chart_rows)}).fill(60),borderColor:'#9ca3af',pointRadius:0,borderWidth:1,borderDash:[6,4]}}
+    ]
+  }},
+  options:{{responsive:true,plugins:{{legend:{{position:'top'}}}},scales:{{y:{{min:0,max:100}},x:{{ticks:{{maxTicksLimit:10}}}}}}}}
+}})
+</script>
+</body></html>"""
+
+    with open(HTML_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+
+# ── 主程序 ─────────────────────────────────────────────────────────────────────
+def main():
+    args = parse_args()
+    print("\n正在拉取价格数据...")
+    df     = fetch(SYMBOL)
+    closes = df['Close'].squeeze()
+    price  = float(closes.iloc[-1])
+    today  = str(df.index[-1].date())
+    pnl_pct = (price - AVG_COST) / AVG_COST * 100
+
+    # 技术指标
+    dd_pct        = calc_drawdown_52w(closes)
+    rsi_val       = calc_rsi(closes)
+    h_now, h_prev = calc_macd(closes)
+    bb_z          = calc_bb_z(closes)
+
+    # 技术评分
+    s_dd   = score_drawdown_52w(dd_pct)
+    s_rsi  = score_rsi(rsi_val)
+    s_macd = score_macd(h_prev, h_now)
+    s_bb   = score_bb(bb_z)
+    tech_score = calc_tech_score(s_dd, s_rsi, s_macd, s_bb)
+
+    # 基本面
+    if args.full:
+        print("正在拉取基本面数据（--full 模式）...")
+        fund_data = fetch_fundamentals()
+        filings   = fetch_sec_8k()
+        save_fundamental_cache(fund_data, filings)
+    else:
+        fund_data, filings = load_fundamental_cache()
+        if not fund_data:
+            print("  [提示] 无基本面缓存，建议运行 --full 获取完整数据")
+
+    cash_runway    = fund_data.get("cash_runway_months")
+    analyst_target = fund_data.get("analyst_target")
+    days_8k        = days_since_latest_8k(filings)
+
+    # 基本面评分
+    s_runway   = score_cash_runway(cash_runway or 0)
+    s_target   = score_analyst_target(analyst_target, price)
+    s_pipeline = score_pipeline(days_8k)
+    s_thesis   = score_thesis(False)
+    fund_score = calc_fund_score(s_runway, s_target, s_pipeline, s_thesis)
+
+    total_score = tech_score + fund_score
+
+    # 策略
+    sr = determine_strategy(
+        price=price,
+        tech_score=tech_score,
+        cash_runway=cash_runway,
+        has_negative_event=(s_thesis == 0),
+        add_budget=ADD_BUDGET
+    )
+    strategy   = sr["strategy"]
+    add_amount = sr["add_amount"]
+    reasons    = sr["reasons"]
+
+    # 控制台输出
+    SEP = "─" * 56
+    arrow = "▲" if pnl_pct >= 0 else "▼"
+    print(f"\n{SEP}")
+    print(f"  OKLO 持仓分析  |  {today}")
+    print(SEP)
+    print(f"  现价 ${price:.2f}  |  成本 ${AVG_COST:.2f}  |  {arrow} {abs(pnl_pct):.1f}%")
+    dist_stop = (price - STOP_LOSS_PRICE) / STOP_LOSS_PRICE * 100
+    print(f"  止损线 ${STOP_LOSS_PRICE}  |  距止损 {dist_stop:+.1f}%")
+    print(SEP)
+    print(f"  技术评分 {tech_score:>3}/50  |  基本面 {fund_score:>3}/50  |  综合 {total_score:>3}/100")
+    print(SEP)
+    icons = {"STOP_LOSS": "🔴 止损", "ADD": "🟢 加仓", "HOLD": "🟡 持有"}
+    print(f"  策略建议: {icons.get(strategy, strategy)}")
+    if strategy == "ADD":
+        print(f"  建议加仓金额: ${add_amount:,.0f}")
+    print(SEP)
+
+    # 保存 CSV
+    alert = "RED" if strategy == "STOP_LOSS" else "NONE"
+    row = {
+        "date": today, "price": f"{price:.2f}",
+        "tech_score": tech_score, "fund_score": fund_score, "total_score": total_score,
+        "dd_score": s_dd, "rsi_score": s_rsi, "macd_score": s_macd, "bb_score": s_bb,
+        "dd_pct": f"{dd_pct:.2f}", "rsi_val": f"{rsi_val:.2f}", "bb_z": f"{bb_z:.3f}",
+        "strategy": strategy,
+        "cash_runway_months": f"{cash_runway:.1f}" if cash_runway is not None else "",
+        "analyst_target": f"{analyst_target:.2f}" if analyst_target else "",
+        "alert_level": alert,
+    }
+    save_csv(row)
+    generate_html(today, price, pnl_pct, tech_score, fund_score, total_score,
+                  s_dd, s_rsi, s_macd, s_bb, dd_pct, rsi_val, bb_z,
+                  fund_data, filings, cash_runway, analyst_target, days_8k,
+                  s_runway, s_target, s_pipeline, s_thesis,
+                  strategy, add_amount, reasons)
+
+    print(f"\n  已保存 → {CSV_FILE}")
+    print(f"  报告   → {HTML_FILE}\n")
+
+if __name__ == "__main__":
+    main()
