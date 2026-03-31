@@ -154,6 +154,8 @@ def fetch_sec_8k(cik="0001824920", count=10):
         descriptions = recent.get("primaryDocument", [])
         for i, form in enumerate(forms):
             if form == "8-K" and len(filings) < count:
+                if not descriptions[i]:
+                    continue
                 acc = accessions[i].replace("-", "")
                 filing_url = (f"https://www.sec.gov/Archives/edgar/data/"
                               f"{int(cik)}/{acc}/{descriptions[i]}")
@@ -169,9 +171,13 @@ def fetch_sec_8k(cik="0001824920", count=10):
 def load_fundamental_cache():
     if not os.path.exists(FUNDAMENTAL_FILE):
         return {}, []
-    with open(FUNDAMENTAL_FILE, encoding="utf-8") as f:
-        cached = json.load(f)
-    return cached.get("data", {}), cached.get("filings", [])
+    try:
+        with open(FUNDAMENTAL_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+        return cached.get("data", {}), cached.get("filings", [])
+    except (json.JSONDecodeError, KeyError):
+        print("  [警告] 基本面缓存文件损坏，将重新拉取")
+        return {}, []
 
 def save_fundamental_cache(fund_data, filings):
     with open(FUNDAMENTAL_FILE, "w", encoding="utf-8") as f:
@@ -238,7 +244,8 @@ def determine_strategy(price, tech_score, cash_runway, has_negative_event, add_b
     add_amount = 0.0
     if can_add:
         add_reasons.append(f"技术评分 {tech_score}/50 ≥ 35（超卖信号）")
-        add_reasons.append(f"现金跑道 {cash_runway:.0f} 个月 > 12个月")
+        runway_str = f"{cash_runway:.0f}" if cash_runway is not None else "未知"
+        add_reasons.append(f"现金跑道 {runway_str} 个月 > 12个月")
         add_reasons.append("无止损触发条件")
         if tech_score >= 45:
             add_amount = add_budget * 0.40
