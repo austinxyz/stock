@@ -66,3 +66,31 @@ def test_score_bb():
     assert score_bb(-2.5) == 10
     assert score_bb(-1.7) == 5
     assert score_bb(-1.0) == 0
+
+def test_score_cash_runway():
+    from oklo_score import score_cash_runway
+    assert score_cash_runway(30)   == 20
+    assert score_cash_runway(18)   == 13
+    assert score_cash_runway(8)    == 6
+    assert score_cash_runway(4)    == 0
+    assert score_cash_runway(None) == 0
+
+def test_score_analyst_target():
+    from oklo_score import score_analyst_target
+    assert score_analyst_target(100, 30)  == 15
+    assert score_analyst_target(100, 55)  == 10
+    assert score_analyst_target(100, 85)  == 5
+    assert score_analyst_target(100, 95)  == 0
+    assert score_analyst_target(None, 50) == 0
+
+def test_score_pipeline():
+    from oklo_score import score_pipeline
+    assert score_pipeline(5)    == 10
+    assert score_pipeline(60)   == 5
+    assert score_pipeline(100)  == 0
+    assert score_pipeline(None) == 0
+
+def test_score_thesis():
+    from oklo_score import score_thesis
+    assert score_thesis(False) == 5
+    assert score_thesis(True)  == 0

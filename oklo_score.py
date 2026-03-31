@@ -176,3 +176,41 @@ def load_fundamental_cache():
 def save_fundamental_cache(fund_data, filings):
     with open(FUNDAMENTAL_FILE, "w", encoding="utf-8") as f:
         json.dump({"data": fund_data, "filings": filings}, f, ensure_ascii=False, indent=2)
+
+# ── 基本面评分规则 ──────────────────────────────────────────────────────────────
+def score_cash_runway(months):
+    """满分 20"""
+    if months is None: return 0
+    if months > 24: return 20
+    if months > 12: return 13
+    if months > 6:  return 6
+    return 0
+
+def score_analyst_target(target, current_price):
+    """满分 15"""
+    if not target or not current_price: return 0
+    upside = target / current_price
+    if upside > 2.0: return 15
+    if upside > 1.5: return 10
+    if upside > 1.1: return 5
+    return 0
+
+def score_pipeline(days_since_last_filing):
+    """满分 10"""
+    if days_since_last_filing is None: return 0
+    if days_since_last_filing <= 30: return 10
+    if days_since_last_filing <= 90: return 5
+    return 0
+
+def score_thesis(has_negative_event):
+    """满分 5"""
+    return 0 if has_negative_event else 5
+
+def calc_fund_score(s_runway, s_target, s_pipeline, s_thesis):
+    return s_runway + s_target + s_pipeline + s_thesis  # 满分 50
+
+def days_since_latest_8k(filings):
+    if not filings:
+        return None
+    latest_date = datetime.strptime(filings[0]["date"], "%Y-%m-%d")
+    return (datetime.now() - latest_date).days
