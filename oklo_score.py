@@ -50,6 +50,8 @@ def fetch(symbol):
 
 # ── 技术指标 ───────────────────────────────────────────────────────────────────
 def calc_rsi(closes, period=14):
+    if len(closes) < period + 1:
+        return float('nan')
     delta = closes.diff()
     gain  = delta.clip(lower=0)
     loss  = -delta.clip(upper=0)
@@ -74,6 +76,8 @@ def calc_bb_z(closes, period=20):
 
 def calc_drawdown_52w(closes):
     """当前价格相对过去252个交易日最高价的回撤百分比"""
+    if len(closes) < 2:
+        return 0.0
     lookback = min(252, len(closes) - 1)
     high = closes.iloc[-lookback:-1].max()
     return float((closes.iloc[-1] - high) / high * 100)
