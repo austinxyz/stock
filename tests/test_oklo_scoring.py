@@ -94,3 +94,38 @@ def test_score_thesis():
     from oklo_score import score_thesis
     assert score_thesis(False) == 5
     assert score_thesis(True)  == 0
+
+def test_strategy_stop_loss_by_price():
+    from oklo_score import determine_strategy
+    result = determine_strategy(
+        price=30.0, tech_score=40, cash_runway=18,
+        has_negative_event=False, add_budget=5000
+    )
+    assert result["strategy"] == "STOP_LOSS"
+    assert any("现价低于止损线" in r for r in result["reasons"]["stop_loss"])
+
+def test_strategy_stop_loss_by_cash():
+    from oklo_score import determine_strategy
+    result = determine_strategy(
+        price=50.0, tech_score=40, cash_runway=4,
+        has_negative_event=False, add_budget=5000
+    )
+    assert result["strategy"] == "STOP_LOSS"
+    assert any("现金跑道" in r for r in result["reasons"]["stop_loss"])
+
+def test_strategy_add():
+    from oklo_score import determine_strategy
+    result = determine_strategy(
+        price=50.0, tech_score=40, cash_runway=18,
+        has_negative_event=False, add_budget=5000
+    )
+    assert result["strategy"] == "ADD"
+    assert result["add_amount"] > 0
+
+def test_strategy_hold():
+    from oklo_score import determine_strategy
+    result = determine_strategy(
+        price=50.0, tech_score=20, cash_runway=18,
+        has_negative_event=False, add_budget=5000
+    )
+    assert result["strategy"] == "HOLD"

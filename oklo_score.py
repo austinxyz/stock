@@ -214,3 +214,53 @@ def days_since_latest_8k(filings):
         return None
     latest_date = datetime.strptime(filings[0]["date"], "%Y-%m-%d")
     return (datetime.now() - latest_date).days
+
+# ── 策略逻辑 ───────────────────────────────────────────────────────────────────
+def determine_strategy(price, tech_score, cash_runway, has_negative_event, add_budget):
+    stop_reasons = []
+    add_reasons  = []
+    hold_reasons = []
+
+    if price <= STOP_LOSS_PRICE:
+        stop_reasons.append(f"现价低于止损线 ${STOP_LOSS_PRICE}（成本×30%）")
+    if cash_runway is not None and cash_runway <= 6:
+        stop_reasons.append(f"现金跑道仅剩 {cash_runway:.1f} 个月（<6个月硬止损）")
+    if has_negative_event:
+        stop_reasons.append("检测到重大负面事件（监管受阻或合同取消）")
+
+    can_add = (
+        price > STOP_LOSS_PRICE and
+        tech_score >= 35 and
+        (cash_runway is None or cash_runway > 12) and
+        not has_negative_event
+    )
+
+    add_amount = 0.0
+    if can_add:
+        add_reasons.append(f"技术评分 {tech_score}/50 ≥ 35（超卖信号）")
+        add_reasons.append(f"现金跑道 {cash_runway:.0f} 个月 > 12个月")
+        add_reasons.append("无止损触发条件")
+        if tech_score >= 45:
+            add_amount = add_budget * 0.40
+            add_reasons.append(f"技术分≥45，建议投入预算40%（${add_amount:,.0f}）")
+        else:
+            add_amount = add_budget * 0.20
+            add_reasons.append(f"技术分35-44，建议投入预算20%（${add_amount:,.0f}）")
+    else:
+        if tech_score < 35:
+            hold_reasons.append(f"技术评分 {tech_score}/50 < 35，信号不足")
+        if cash_runway is not None and cash_runway <= 12:
+            hold_reasons.append(f"现金跑道 {cash_runway:.0f} 个月，偏紧，不宜追加")
+
+    if stop_reasons:
+        strategy = "STOP_LOSS"
+    elif can_add:
+        strategy = "ADD"
+    else:
+        strategy = "HOLD"
+
+    return {
+        "strategy":   strategy,
+        "add_amount": add_amount,
+        "reasons": {"stop_loss": stop_reasons, "add": add_reasons, "hold": hold_reasons}
+    }
