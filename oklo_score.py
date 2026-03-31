@@ -41,3 +41,39 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--full", action="store_true", help="重新拉取基本面和SEC公告")
     return p.parse_args()
+
+# ── 数据拉取 ───────────────────────────────────────────────────────────────────
+def fetch(symbol):
+    df = yf.download(symbol, period=f"{LOOKBACK_DAYS}d", auto_adjust=True,
+                     progress=False, multi_level_index=False)
+    return df.dropna()
+
+# ── 技术指标 ───────────────────────────────────────────────────────────────────
+def calc_rsi(closes, period=14):
+    delta = closes.diff()
+    gain  = delta.clip(lower=0)
+    loss  = -delta.clip(upper=0)
+    ag = gain.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    al = loss.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    last_al = float(al.iloc[-1])
+    if last_al == 0:
+        return 100.0
+    rs = ag / al.where(al != 0, np.nan)
+    return float((100 - 100 / (1 + rs)).iloc[-1])
+
+def calc_macd(closes, fast=12, slow=26, signal=9):
+    ml = closes.ewm(span=fast, adjust=False).mean() - closes.ewm(span=slow, adjust=False).mean()
+    sl = ml.ewm(span=signal, adjust=False).mean()
+    h  = ml - sl
+    return float(h.iloc[-1]), float(h.iloc[-2])
+
+def calc_bb_z(closes, period=20):
+    w   = closes.iloc[-period:]
+    std = w.std()
+    return float((closes.iloc[-1] - w.mean()) / std) if std else 0.0
+
+def calc_drawdown_52w(closes):
+    """当前价格相对过去252个交易日最高价的回撤百分比"""
+    lookback = min(252, len(closes) - 1)
+    high = closes.iloc[-lookback:-1].max()
+    return float((closes.iloc[-1] - high) / high * 100)
