@@ -546,3 +546,120 @@ new Chart(document.getElementById('scoreChart'),{{
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(html)
     os.replace(tmp, HTML_FILE)
+
+# ── 主程序 ─────────────────────────────────────────────────────────────────────
+def main():
+    print("\n正在拉取 EBAY 价格数据...")
+    try:
+        df = fetch(SYMBOL)
+        if df.empty:
+            print("错误：无法获取价格数据")
+            sys.exit(1)
+    except Exception as e:
+        print(f"错误：{e}")
+        sys.exit(1)
+
+    closes   = df["Close"].squeeze()
+    today    = str(df.index[-1].date())
+    price    = float(closes.iloc[-1])
+
+    # 技术指标
+    rsi_val       = calc_rsi(closes)
+    h_now, h_prev = calc_macd(closes)
+    bb_z          = calc_bb_z(closes)
+    dist_pct      = calc_distance_52w_high(closes)
+
+    # 技术评分
+    s_rsi  = score_rsi_sell(rsi_val)
+    s_dist = score_distance_52w_high(dist_pct)
+    s_bb   = score_bb_sell(bb_z)
+    s_macd = score_macd_sell(h_prev, h_now)
+    tech_score = calc_tech_score(s_rsi, s_dist, s_bb, s_macd)
+
+    # 基本面（读缓存，不重新拉取）
+    fund_data = load_fundamental_cache()
+    if not fund_data:
+        print("  基本面缓存不存在，正在拉取...")
+        fund_data = fetch_fundamentals()
+        save_fundamental_cache(fund_data)
+
+    pe_ratio     = fund_data.get("pe_ratio") or 0.0
+    target_price = fund_data.get("target_price") or 0.0
+    rev_growth   = fund_data.get("revenue_growth") or 0.0
+    rec_mean     = fund_data.get("recommendation") or 3.0
+
+    s_upside  = score_analyst_upside(target_price, price)
+    s_pe      = score_pe(pe_ratio)
+    s_revenue = score_revenue_growth(rev_growth)
+    s_rating  = score_analyst_rating(rec_mean)
+    fund_score = calc_fund_score(s_upside, s_pe, s_revenue, s_rating)
+
+    total_score = tech_score + fund_score
+
+    # 卖出记录
+    init_sell_log()
+    sell_log         = read_sell_log()
+    annual_remaining = calc_annual_remaining(sell_log)
+
+    # 卖出建议
+    sr = determine_sell_strategy(
+        total_score      = total_score,
+        rsu_shares       = RSU_SHARES,
+        espp_shares      = ESPP_SHARES,
+        price            = price,
+        rsu_avg_cost     = RSU_AVG_COST,
+        espp_avg_cost    = ESPP_AVG_COST,
+        tax_rate         = TAX_RATE_LTCG,
+        annual_remaining = annual_remaining,
+    )
+
+    # 控制台输出
+    SEP = "─" * 56
+    action_icon = {"SELL": "🔴 卖出", "WAIT": "🟡 观望", "HOLD": "🟢 等待"}.get(sr["action"], sr["action"])
+    print(f"\n{SEP}")
+    print(f"  EBAY 持仓分析  |  {today}")
+    print(SEP)
+    total_value = (ESPP_SHARES + RSU_SHARES) * price
+    print(f"  现价 ${price:.2f}  |  持仓市值 ${total_value:,.0f}")
+    print(f"  ESPP {ESPP_SHARES}股@${ESPP_AVG_COST}  |  RSU {RSU_SHARES}股@${RSU_AVG_COST}")
+    print(SEP)
+    print(f"  技术评分 {tech_score:>3}/50  |  基本面 {fund_score:>3}/50  |  综合 {total_score:>3}/100")
+    print(SEP)
+    print(f"  建议: {action_icon}")
+    if sr["action"] in ("SELL", "WAIT"):
+        print(f"  卖出 {sr['pool']} {sr['shares']}股 | 税款 ~${sr['tax_estimate']:,.0f} | 税后 ${sr['net_proceeds']:,.0f}")
+    year_sold = ANNUAL_BUDGET - annual_remaining
+    print(f"  今年进度: ${year_sold:,.0f} / ${ANNUAL_BUDGET:,}  剩余: ${annual_remaining:,.0f}")
+    print(SEP)
+
+    # 保存 CSV
+    row = {
+        "date":            today,
+        "price":           f"{price:.2f}",
+        "tech_score":      tech_score,
+        "fund_score":      fund_score,
+        "total_score":     total_score,
+        "rsi_score":       s_rsi,
+        "dist_score":      s_dist,
+        "bb_score":        s_bb,
+        "macd_score":      s_macd,
+        "rsi_val":         f"{rsi_val:.2f}",
+        "dist_pct":        f"{dist_pct:.2f}",
+        "bb_z":            f"{bb_z:.3f}",
+        "action":          sr["action"],
+        "pool":            sr["pool"] or "",
+        "suggested_shares": sr["shares"],
+        "tax_estimate":    f"{sr['tax_estimate']:.2f}",
+        "net_proceeds":    f"{sr['net_proceeds']:.2f}",
+    }
+    save_csv(row)
+
+    generate_html(today, price, sr, tech_score, fund_score, total_score,
+                  s_rsi, s_dist, s_bb, s_macd, rsi_val, dist_pct, bb_z,
+                  fund_data, s_upside, s_pe, s_revenue, s_rating, sell_log)
+
+    print(f"\n  已保存 → {CSV_FILE}")
+    print(f"  报告   → {HTML_FILE}\n")
+
+if __name__ == "__main__":
+    main()
