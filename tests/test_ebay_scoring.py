@@ -52,6 +52,10 @@ def test_score_macd_sell_expanding_positive():
 def test_score_macd_sell_negative_expanding():
     assert m.score_macd_sell(h_prev=-0.5, h_now=-0.8) == 0
 
+def test_score_macd_sell_bullish_cross():
+    # h_prev < 0, h_now > 0 = bullish zero-cross = NOT a sell signal
+    assert m.score_macd_sell(h_prev=-0.2, h_now=0.1) == 0
+
 # ── calc_tech_score ──
 def test_calc_tech_score_max():
     assert m.calc_tech_score(15, 15, 10, 10) == 50

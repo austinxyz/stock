@@ -56,6 +56,9 @@ def calc_rsi(closes, period=14):
     loss  = -delta.clip(upper=0)
     ag = gain.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
     al = loss.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    last_al = float(al.iloc[-1])
+    if last_al == 0:
+        return 100.0
     rs = ag / al.where(al != 0, other=np.nan)
     return float((100 - 100 / (1 + rs)).iloc[-1])
 
@@ -100,8 +103,8 @@ def score_bb_sell(bb_z: float) -> int:
 def score_macd_sell(h_prev: float, h_now: float) -> int:
     """Bearish top signals score high. Bottom expansion scores 0."""
     if h_prev > 0 and h_now < h_prev: return 10  # shrinking positive or zero-cross
-    if h_now >= 0:                     return 5   # still positive but not shrinking
-    return 0                                       # negative histogram
+    if h_prev >= 0 and h_now >= 0:    return 5   # sustained positive, not shrinking
+    return 0                                       # negative or bullish cross
 
 def calc_tech_score(s_rsi: int, s_dist: int, s_bb: int, s_macd: int) -> int:
     return s_rsi + s_dist + s_bb + s_macd
