@@ -56,7 +56,7 @@ def generate_monthly_html(price: float, today: str, fund_data: dict, filings: li
     upside_pct = ((analyst_t - price) / price * 100) if analyst_t else None
 
     # 加仓进度（ADD_BUDGET 是剩余可用，不是已用）
-    total_add_budget = 5_000      # 原始加仓预算（$4000剩余 + $1000已用）
+    total_add_budget = 5_000      # 原始加仓预算（$3000剩余 + $2000已用）
     used_add_budget  = total_add_budget - m.ADD_BUDGET
     add_pct          = min(100, int(used_add_budget / total_add_budget * 100))
 
