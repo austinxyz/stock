@@ -15,11 +15,11 @@
 
 ```python
 # ESPP 持仓
-ESPP_SHARES    = 2_111    # $190K / $90 现价
+ESPP_SHARES    = 1_957    # 实际持仓股数
 ESPP_AVG_COST  = 30.00    # 每股成本；每股浮盈 $60
 
 # RSU 持仓
-RSU_SHARES     = 1_000    # $90K / $90 现价
+RSU_SHARES     = 1_016    # 实际持仓股数
 RSU_AVG_COST   = 70.00    # 归属时股价（成本基础）；每股浮盈 $20
 
 # 卖出计划
