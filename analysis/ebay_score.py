@@ -108,3 +108,38 @@ def score_macd_sell(h_prev: float, h_now: float) -> int:
 
 def calc_tech_score(s_rsi: int, s_dist: int, s_bb: int, s_macd: int) -> int:
     return s_rsi + s_dist + s_bb + s_macd
+
+# ── 基本面评分（高分 = 高估或基本面走弱 = 好卖点） ──────────────────────────────
+def score_analyst_upside(target_price: float, current_price: float) -> int:
+    """Analyst target price upside. High score = high overvaluation = good sell signal."""
+    if target_price <= 0 or current_price <= 0:
+        return 0
+    upside = (target_price - current_price) / current_price
+    if upside < 0.05:  return 15
+    if upside < 0.15:  return 8
+    if upside < 0.30:  return 3
+    return 0
+
+def score_pe(pe_ratio: float) -> int:
+    """P/E ratio scoring. High PE = high valuation = good sell signal."""
+    if pe_ratio <= 0: return 0
+    if pe_ratio > 20: return 15
+    if pe_ratio > 16: return 8
+    if pe_ratio > 12: return 3
+    return 0
+
+def score_revenue_growth(growth_rate: float) -> int:
+    """Revenue growth rate scoring. Declining or slow growth = good sell signal."""
+    if growth_rate < 0:    return 10
+    if growth_rate < 0.05: return 5
+    return 0
+
+def score_analyst_rating(recommendation_mean: float) -> int:
+    """yfinance recommendationMean: 1=强买 → 5=强卖。值越高越悲观，越适合卖出。"""
+    if recommendation_mean >= 3.5: return 10
+    if recommendation_mean >= 2.5: return 5
+    return 0
+
+def calc_fund_score(s_upside: int, s_pe: int, s_revenue: int, s_rating: int) -> int:
+    """Calculate total fundamental score."""
+    return s_upside + s_pe + s_revenue + s_rating
