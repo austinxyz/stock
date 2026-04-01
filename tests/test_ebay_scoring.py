@@ -121,3 +121,53 @@ def test_calc_fund_score_max():
 
 def test_calc_fund_score_zero():
     assert m.calc_fund_score(0, 0, 0, 0) == 0
+
+# ── determine_sell_strategy ──
+def test_strategy_sell_rsu_first():
+    r = m.determine_sell_strategy(
+        total_score=75, rsu_shares=1016, espp_shares=1957,
+        price=90.0, rsu_avg_cost=70.0, espp_avg_cost=30.0,
+        tax_rate=0.321, annual_remaining=40_000,
+    )
+    assert r["action"] == "SELL"
+    assert r["pool"] == "RSU"
+    assert r["shares"] > 0
+    assert abs(r["capital_gain"] - r["shares"] * (90.0 - 70.0)) < 0.01
+    assert abs(r["tax_estimate"] - r["capital_gain"] * 0.321) < 0.01
+    assert abs(r["net_proceeds"] - (r["proceeds"] - r["tax_estimate"])) < 0.01
+
+def test_strategy_wait():
+    r = m.determine_sell_strategy(
+        total_score=55, rsu_shares=1016, espp_shares=1957,
+        price=90.0, rsu_avg_cost=70.0, espp_avg_cost=30.0,
+        tax_rate=0.321, annual_remaining=40_000,
+    )
+    assert r["action"] == "WAIT"
+    assert r["shares"] > 0
+
+def test_strategy_hold():
+    r = m.determine_sell_strategy(
+        total_score=40, rsu_shares=1016, espp_shares=1957,
+        price=90.0, rsu_avg_cost=70.0, espp_avg_cost=30.0,
+        tax_rate=0.321, annual_remaining=40_000,
+    )
+    assert r["action"] == "HOLD"
+    assert r["shares"] == 0
+
+def test_strategy_espp_when_rsu_empty():
+    r = m.determine_sell_strategy(
+        total_score=75, rsu_shares=0, espp_shares=1957,
+        price=90.0, rsu_avg_cost=70.0, espp_avg_cost=30.0,
+        tax_rate=0.321, annual_remaining=40_000,
+    )
+    assert r["pool"] == "ESPP"
+    assert abs(r["capital_gain"] - r["shares"] * (90.0 - 30.0)) < 0.01
+
+def test_strategy_no_annual_budget():
+    r = m.determine_sell_strategy(
+        total_score=75, rsu_shares=1016, espp_shares=1957,
+        price=90.0, rsu_avg_cost=70.0, espp_avg_cost=30.0,
+        tax_rate=0.321, annual_remaining=0,
+    )
+    assert r["action"] == "HOLD"
+    assert r["shares"] == 0

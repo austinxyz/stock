@@ -143,3 +143,83 @@ def score_analyst_rating(recommendation_mean: float) -> int:
 def calc_fund_score(s_upside: int, s_pe: int, s_revenue: int, s_rating: int) -> int:
     """Calculate total fundamental score."""
     return s_upside + s_pe + s_revenue + s_rating
+
+# ── 卖出策略 ───────────────────────────────────────────────────────────────────
+def determine_sell_strategy(
+    total_score: int,
+    rsu_shares: float,
+    espp_shares: float,
+    price: float,
+    rsu_avg_cost: float,
+    espp_avg_cost: float,
+    tax_rate: float,
+    annual_remaining: float,
+) -> dict:
+    """
+    Returns dict:
+      action: "SELL" | "WAIT" | "HOLD"
+      pool:   "RSU" | "ESPP" | None
+      shares: int
+      proceeds, capital_gain, tax_estimate, net_proceeds: float
+      reasons: list[str]
+    """
+    reasons = []
+
+    if annual_remaining <= 0:
+        reasons.append("今年年度卖出预算已用完")
+        return {"action": "HOLD", "pool": None, "shares": 0,
+                "proceeds": 0.0, "capital_gain": 0.0,
+                "tax_estimate": 0.0, "net_proceeds": 0.0, "reasons": reasons}
+
+    if total_score >= 70:
+        action = "SELL"
+        ratio  = 0.20
+        reasons.append(f"综合评分 {total_score}/100，技术面卖出信号强")
+    elif total_score >= 50:
+        action = "WAIT"
+        ratio  = 0.10
+        reasons.append(f"综合评分 {total_score}/100，信号一般，可小量卖出")
+    else:
+        reasons.append(f"综合评分 {total_score}/100，价格可能仍有上涨空间")
+        return {"action": "HOLD", "pool": None, "shares": 0,
+                "proceeds": 0.0, "capital_gain": 0.0,
+                "tax_estimate": 0.0, "net_proceeds": 0.0, "reasons": reasons}
+
+    # 优先卖 RSU（资本利得低，税负小）
+    if rsu_shares > 0:
+        pool     = "RSU"
+        avg_cost = rsu_avg_cost
+        available = rsu_shares
+        reasons.append(
+            f"优先卖 RSU：每股资本利得 ${price - rsu_avg_cost:.2f}"
+            f"（低于 ESPP 的 ${price - espp_avg_cost:.2f}）"
+        )
+    else:
+        pool     = "ESPP"
+        avg_cost = espp_avg_cost
+        available = espp_shares
+        reasons.append("RSU 已清空，卖出 ESPP")
+
+    shares = min(int(annual_remaining * ratio / price), int(available))
+
+    if shares <= 0:
+        reasons.append("可用股数不足")
+        return {"action": "HOLD", "pool": None, "shares": 0,
+                "proceeds": 0.0, "capital_gain": 0.0,
+                "tax_estimate": 0.0, "net_proceeds": 0.0, "reasons": reasons}
+
+    proceeds     = shares * price
+    capital_gain = shares * (price - avg_cost)
+    tax_estimate = max(0.0, capital_gain * tax_rate)
+    net_proceeds = proceeds - tax_estimate
+
+    return {
+        "action":       action,
+        "pool":         pool,
+        "shares":       shares,
+        "proceeds":     proceeds,
+        "capital_gain": capital_gain,
+        "tax_estimate": tax_estimate,
+        "net_proceeds": net_proceeds,
+        "reasons":      reasons,
+    }
