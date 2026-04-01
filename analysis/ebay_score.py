@@ -223,3 +223,72 @@ def determine_sell_strategy(
         "net_proceeds": net_proceeds,
         "reasons":      reasons,
     }
+
+# ── 基本面数据 ─────────────────────────────────────────────────────────────────
+def fetch_fundamentals() -> dict:
+    info = yf.Ticker(SYMBOL).info
+    return {
+        "pe_ratio":       info.get("trailingPE"),
+        "target_price":   info.get("targetMeanPrice"),
+        "revenue_growth": info.get("revenueGrowth"),
+        "recommendation": info.get("recommendationMean"),
+        "market_cap":     info.get("marketCap"),
+        "trailing_eps":   info.get("trailingEps"),
+        "dividend_yield": info.get("dividendYield"),
+        "updated_at":     datetime.now().isoformat(),
+    }
+
+def load_fundamental_cache() -> dict:
+    if not os.path.exists(FUND_FILE):
+        return {}
+    try:
+        with open(FUND_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, KeyError):
+        return {}
+
+def save_fundamental_cache(data: dict):
+    tmp = FUND_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, FUND_FILE)
+
+# ── CSV (每日历史) ─────────────────────────────────────────────────────────────
+def read_csv_rows() -> list:
+    if not os.path.exists(CSV_FILE):
+        return []
+    with open(CSV_FILE, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+def save_csv(row: dict):
+    rows = [r for r in read_csv_rows() if r["date"] != row["date"]]
+    rows.append(row)
+    rows.sort(key=lambda r: r["date"])
+    tmp = CSV_FILE + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    os.replace(tmp, CSV_FILE)
+
+# ── 卖出记录 ──────────────────────────────────────────────────────────────────
+def init_sell_log():
+    """创建卖出记录文件（只建表头，不覆盖已有数据）。"""
+    if not os.path.exists(SELL_LOG_FILE):
+        with open(SELL_LOG_FILE, "w", newline="", encoding="utf-8") as f:
+            csv.DictWriter(f, fieldnames=SELL_LOG_FIELDS).writeheader()
+
+def read_sell_log() -> list:
+    if not os.path.exists(SELL_LOG_FILE):
+        return []
+    with open(SELL_LOG_FILE, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+def calc_annual_remaining(sell_log: list) -> float:
+    year = str(datetime.now().year)
+    year_proceeds = sum(float(r["proceeds"]) for r in sell_log
+                        if r.get("date", "").startswith(year))
+    return max(0.0, ANNUAL_BUDGET - year_proceeds)
+
+def calc_total_sold(sell_log: list) -> float:
+    return sum(float(r["proceeds"]) for r in sell_log)
