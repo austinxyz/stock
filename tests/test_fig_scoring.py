@@ -58,3 +58,50 @@ def test_calc_tech_score_max():
 
 def test_calc_tech_score_zero():
     assert m.calc_tech_score(0, 0, 0, 0) == 0
+
+# ── 收入增速 ──
+def test_score_revenue_growth_strong():
+    assert m.score_revenue_growth(0.25) == 20
+
+def test_score_revenue_growth_healthy():
+    assert m.score_revenue_growth(0.12) == 13
+
+def test_score_revenue_growth_slow():
+    assert m.score_revenue_growth(0.06) == 6
+
+def test_score_revenue_growth_flat():
+    assert m.score_revenue_growth(0.02) == 0
+
+# ── 分析师目标价上涨空间 ──
+def test_score_upside_strong():
+    assert m.score_upside(130.0, 100.0) == 20   # 30% upside
+
+def test_score_upside_moderate():
+    assert m.score_upside(118.0, 100.0) == 13   # 18% upside
+
+def test_score_upside_small():
+    assert m.score_upside(106.0, 100.0) == 6    # 6% upside
+
+def test_score_upside_none():
+    assert m.score_upside(102.0, 100.0) == 0    # 2% upside
+    assert m.score_upside(0, 100.0) == 0        # no target
+
+# ── 分析师评级 ──
+def test_score_analyst_rating_strong_buy():
+    assert m.score_analyst_rating(1.8) == 20
+
+def test_score_analyst_rating_buy():
+    assert m.score_analyst_rating(2.3) == 13
+
+def test_score_analyst_rating_hold():
+    assert m.score_analyst_rating(2.8) == 6
+
+def test_score_analyst_rating_sell():
+    assert m.score_analyst_rating(3.5) == 0
+
+# ── calc_fund_score ──
+def test_calc_fund_score_max():
+    assert m.calc_fund_score(20, 20, 20) == 60
+
+def test_calc_fund_score_zero():
+    assert m.calc_fund_score(0, 0, 0) == 0

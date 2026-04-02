@@ -102,3 +102,29 @@ def score_drawdown(pct: float) -> int:
 
 def calc_tech_score(s_rsi: int, s_macd: int, s_ma200: int, s_dd: int) -> int:
     return s_rsi + s_macd + s_ma200 + s_dd
+
+# ── 基本面评分（高分 = 基本面强，值得持有） ──────────────────────────────────────
+def score_revenue_growth(growth: float) -> int:
+    if growth >= 0.20: return 20
+    if growth >= 0.10: return 13
+    if growth >= 0.05: return 6
+    return 0
+
+def score_upside(target: float, current: float) -> int:
+    if target <= 0 or current <= 0:
+        return 0
+    upside = (target - current) / current
+    if upside >= 0.30: return 20
+    if upside >= 0.15: return 13
+    if upside >= 0.05: return 6
+    return 0
+
+def score_analyst_rating(rec_mean: float) -> int:
+    """1=强买 → 5=强卖。值越低越看多，越值得持有。"""
+    if rec_mean <= 2.0: return 20
+    if rec_mean <= 2.5: return 13
+    if rec_mean <= 3.0: return 6
+    return 0
+
+def calc_fund_score(s_revenue: int, s_upside: int, s_rating: int) -> int:
+    return s_revenue + s_upside + s_rating
