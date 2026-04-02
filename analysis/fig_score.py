@@ -128,3 +128,25 @@ def score_analyst_rating(rec_mean: float) -> int:
 
 def calc_fund_score(s_revenue: int, s_upside: int, s_rating: int) -> int:
     return s_revenue + s_upside + s_rating
+
+# ── 换仓建议 ───────────────────────────────────────────────────────────────────
+def determine_recommendation(fig_rank: int, fig_score: int) -> dict:
+    """
+    Returns dict:
+      action: "HOLD" | "WATCH" | "SELL"
+      reason: str
+    """
+    if fig_rank <= 2:
+        return {
+            "action": "HOLD",
+            "reason": f"FIG 在同类中排名第 {fig_rank}，基本面相对强劲，继续持有。",
+        }
+    if fig_rank == 3 or fig_score >= 55:
+        return {
+            "action": "WATCH",
+            "reason": f"FIG 排名第 {fig_rank}（评分 {fig_score}），持仓竞争力一般，保持关注。",
+        }
+    return {
+        "action": "SELL",
+        "reason": f"FIG 排名第 {fig_rank}（评分 {fig_score}/100），在同类中处于末位，建议换仓。",
+    }

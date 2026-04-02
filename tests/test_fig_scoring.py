@@ -105,3 +105,28 @@ def test_calc_fund_score_max():
 
 def test_calc_fund_score_zero():
     assert m.calc_fund_score(0, 0, 0) == 0
+
+# ── determine_recommendation ──
+def test_recommendation_hold_rank1():
+    r = m.determine_recommendation(fig_rank=1, fig_score=70)
+    assert r["action"] == "HOLD"
+
+def test_recommendation_hold_rank2():
+    r = m.determine_recommendation(fig_rank=2, fig_score=65)
+    assert r["action"] == "HOLD"
+
+def test_recommendation_watch_rank3():
+    r = m.determine_recommendation(fig_rank=3, fig_score=60)
+    assert r["action"] == "WATCH"
+
+def test_recommendation_sell_rank4_low_score():
+    r = m.determine_recommendation(fig_rank=4, fig_score=48)
+    assert r["action"] == "SELL"
+
+def test_recommendation_watch_rank4_high_score():
+    r = m.determine_recommendation(fig_rank=4, fig_score=58)
+    assert r["action"] == "WATCH"
+
+def test_recommendation_sell_rank5():
+    r = m.determine_recommendation(fig_rank=5, fig_score=40)
+    assert r["action"] == "SELL"
