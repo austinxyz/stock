@@ -150,3 +150,74 @@ def determine_recommendation(fig_rank: int, fig_score: int) -> dict:
         "action": "SELL",
         "reason": f"FIG 排名第 {fig_rank}（评分 {fig_score}/100），在同类中处于末位，建议换仓。",
     }
+
+# ── 基本面数据拉取与缓存 ────────────────────────────────────────────────────────
+def fetch_fundamentals_for(symbol: str) -> dict:
+    try:
+        info = yf.Ticker(symbol).info
+        return {
+            "revenue_growth": info.get("revenueGrowth"),
+            "target_price":   info.get("targetMeanPrice"),
+            "recommendation": info.get("recommendationMean"),
+            "market_cap":     info.get("marketCap"),
+            "updated_at":     datetime.now().isoformat(),
+        }
+    except Exception as e:
+        print(f"  [警告] {symbol} 基本面拉取失败: {e}")
+        return {}
+
+def load_fundamental_cache() -> dict:
+    if not os.path.exists(FUND_FILE):
+        return {}
+    try:
+        with open(FUND_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+def save_fundamental_cache(data: dict):
+    tmp = FUND_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, FUND_FILE)
+
+def is_cache_stale(cache: dict) -> bool:
+    """Returns True if any symbol is missing or cache is older than FUND_CACHE_DAYS."""
+    for symbol in ALL_SYMBOLS:
+        if symbol not in cache:
+            return True
+    try:
+        sample_updated = cache[ALL_SYMBOLS[0]].get("updated_at", "")
+        updated = datetime.fromisoformat(sample_updated)
+        return (datetime.now() - updated).days >= FUND_CACHE_DAYS
+    except (ValueError, KeyError):
+        return True
+
+def get_fundamentals() -> dict:
+    """Load cache; auto-refresh if stale."""
+    cache = load_fundamental_cache()
+    if is_cache_stale(cache):
+        print("  正在刷新基本面缓存（7天自动刷新）...")
+        for symbol in ALL_SYMBOLS:
+            cache[symbol] = fetch_fundamentals_for(symbol)
+            time.sleep(1)
+        save_fundamental_cache(cache)
+    return cache
+
+# ── CSV 历史记录 ────────────────────────────────────────────────────────────────
+def read_csv_rows() -> list:
+    if not os.path.exists(CSV_FILE):
+        return []
+    with open(CSV_FILE, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+def save_csv(row: dict):
+    rows = [r for r in read_csv_rows() if r["date"] != row["date"]]
+    rows.append(row)
+    rows.sort(key=lambda r: r["date"])
+    tmp = CSV_FILE + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    os.replace(tmp, CSV_FILE)
