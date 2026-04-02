@@ -4,7 +4,7 @@ FIG (Figma) 持仓信心评分脚本
 用法: py analysis/fig_score.py
 对比 FIG 与 PLTR、NOW、DDOG、ADBE，辅助 Roth IRA 换仓决策。
 """
-import sys, io, os, csv, json, time
+import sys, io, os, csv, json, time, math
 from datetime import datetime, timedelta
 if sys.stdout and hasattr(sys.stdout, 'buffer') and __name__ == '__main__':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -80,7 +80,6 @@ def calc_drawdown_from_high(closes: pd.Series) -> float:
 
 # ── 技术评分（高分 = 上升趋势，值得持有） ─────────────────────────────────────
 def score_rsi_hold(rsi: float) -> int:
-    import math
     if math.isnan(rsi): return 0
     if 50 <= rsi <= 70: return 15
     if 35 <= rsi < 50:  return 8
