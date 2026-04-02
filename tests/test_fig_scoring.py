@@ -130,3 +130,87 @@ def test_recommendation_watch_rank4_high_score():
 def test_recommendation_sell_rank5():
     r = m.determine_recommendation(fig_rank=5, fig_score=40)
     assert r["action"] == "SELL"
+
+# ── data layer ──────────────────────────────────────────────────────────────────
+import pytest, tempfile, os, json, csv as _csv
+from datetime import datetime, timedelta
+
+# ── load_fundamental_cache ──
+def test_load_fundamental_cache_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'FUND_FILE', str(tmp_path / 'fund.json'))
+    assert m.load_fundamental_cache() == {}
+
+def test_load_fundamental_cache_corrupt(tmp_path, monkeypatch):
+    f = tmp_path / 'fund.json'
+    f.write_text("not json", encoding="utf-8")
+    monkeypatch.setattr(m, 'FUND_FILE', str(f))
+    assert m.load_fundamental_cache() == {}
+
+def test_load_fundamental_cache_valid(tmp_path, monkeypatch):
+    f = tmp_path / 'fund.json'
+    data = {"FIG": {"revenue_growth": 0.25}}
+    f.write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(m, 'FUND_FILE', str(f))
+    assert m.load_fundamental_cache() == data
+
+# ── save_fundamental_cache ──
+def test_save_fundamental_cache_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'FUND_FILE', str(tmp_path / 'fund.json'))
+    data = {"FIG": {"revenue_growth": 0.15}}
+    m.save_fundamental_cache(data)
+    assert m.load_fundamental_cache() == data
+
+# ── is_cache_stale ──
+def test_is_cache_stale_missing_symbol():
+    assert m.is_cache_stale({}) is True
+
+def test_is_cache_stale_fresh():
+    now = datetime.now().isoformat()
+    cache = {sym: {"updated_at": now} for sym in m.ALL_SYMBOLS}
+    assert m.is_cache_stale(cache) is False
+
+def test_is_cache_stale_old():
+    old = (datetime.now() - timedelta(days=8)).isoformat()
+    cache = {sym: {"updated_at": old} for sym in m.ALL_SYMBOLS}
+    assert m.is_cache_stale(cache) is True
+
+def test_is_cache_stale_malformed_date():
+    cache = {sym: {"updated_at": "not-a-date"} for sym in m.ALL_SYMBOLS}
+    assert m.is_cache_stale(cache) is True
+
+# ── read_csv_rows / save_csv ──
+def test_read_csv_rows_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'CSV_FILE', str(tmp_path / 'history.csv'))
+    assert m.read_csv_rows() == []
+
+def test_save_csv_creates_and_reads(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'CSV_FILE', str(tmp_path / 'history.csv'))
+    row = {f: "0" for f in m.CSV_FIELDS}
+    row["date"] = "2026-04-01"
+    m.save_csv(row)
+    rows = m.read_csv_rows()
+    assert len(rows) == 1
+    assert rows[0]["date"] == "2026-04-01"
+
+def test_save_csv_dedup_by_date(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'CSV_FILE', str(tmp_path / 'history.csv'))
+    row = {f: "0" for f in m.CSV_FIELDS}
+    row["date"] = "2026-04-01"
+    m.save_csv(row)
+    row2 = dict(row)
+    row2["total_score"] = "99"
+    m.save_csv(row2)
+    rows = m.read_csv_rows()
+    assert len(rows) == 1
+    assert rows[0]["total_score"] == "99"
+
+def test_save_csv_sorted_ascending(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, 'CSV_FILE', str(tmp_path / 'history.csv'))
+    base = {f: "0" for f in m.CSV_FIELDS}
+    for d in ["2026-04-03", "2026-04-01", "2026-04-02"]:
+        row = dict(base)
+        row["date"] = d
+        m.save_csv(row)
+    rows = m.read_csv_rows()
+    dates = [r["date"] for r in rows]
+    assert dates == sorted(dates)
