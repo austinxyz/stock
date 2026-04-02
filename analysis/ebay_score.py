@@ -44,9 +44,16 @@ SELL_LOG_FIELDS = [
 
 # ── 技术指标 ───────────────────────────────────────────────────────────────────
 def fetch(symbol):
-    df = yf.download(symbol, period=f"{LOOKBACK_DAYS}d", auto_adjust=True,
-                     progress=False, multi_level_index=False)
-    return df.dropna()
+    import time
+    for attempt in range(3):
+        df = yf.download(symbol, period=f"{LOOKBACK_DAYS}d", auto_adjust=True,
+                         progress=False, multi_level_index=False)
+        df = df.dropna()
+        if not df.empty:
+            return df
+        if attempt < 2:
+            time.sleep(3)
+    return df
 
 def calc_rsi(closes, period=14):
     if len(closes) < period + 1:
