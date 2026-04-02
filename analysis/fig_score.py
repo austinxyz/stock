@@ -285,21 +285,26 @@ def generate_html(today: str, price: float, scores: list,
         tgt      = fd.get("target_price")
         rec_val  = fd.get("recommendation")
         rgrow    = fd.get("revenue_growth")
+        upside_pct = f"{(tgt - s['price']) / s['price'] * 100:+.1f}%" if tgt and s.get("price") else "N/A"
         peer_cards += f'''<div style="background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08);{border}">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
     <span style="font-size:16px;font-weight:800">{_medal(s["rank"])} {sym}</span>
     <span style="font-size:22px;font-weight:700;color:{tc}">{s["total_score"]}<span style="font-size:12px;color:#9ca3af">/100</span></span>
   </div>
-  <div style="font-size:12px;color:#6b7280;margin-bottom:6px">技术 {s["tech_score"]}/40 · 基本面 {s["fund_score"]}/60</div>
   {_bar(s["total_score"], 100)}
-  <div style="margin-top:10px;font-size:12px;color:#374151;display:grid;grid-template-columns:1fr 1fr;gap:4px">
-    <div>RSI: {s["rsi_val"]:.1f}</div>
-    <div>目标价: {"$"+str(round(tgt,2)) if tgt else "N/A"}</div>
-    <div>回撤: {s["dd_pct"]:+.1f}%</div>
-    <div>评级: {f"{rec_val:.1f}" if rec_val else "N/A"}</div>
-    <div>vs 200MA: {"↑" if s.get("ma200_score", 0) == 10 else "↓"}</div>
-    <div>增速: {f"{rgrow*100:+.1f}%" if rgrow else "N/A"}</div>
-  </div>
+  <div style="margin-top:12px;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.05em;margin-bottom:4px">技术面 {s["tech_score"]}/40</div>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr><td style="color:#6b7280;padding:2px 0">RSI ({s["rsi_val"]:.1f})</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_rsi"],15)}">{s["s_rsi"]}/15</td></tr>
+    <tr><td style="color:#6b7280;padding:2px 0">MACD histogram</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_macd"],10)}">{s["s_macd"]}/10</td></tr>
+    <tr><td style="color:#6b7280;padding:2px 0">vs 200日均线 ({"↑" if s.get("ma200_score",0)==10 else "↓"}${s["ma200_val"]:.0f})</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_ma200"],10)}">{s["s_ma200"]}/10</td></tr>
+    <tr><td style="color:#6b7280;padding:2px 0">52周回撤 ({s["dd_pct"]:+.1f}%)</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_dd"],5)}">{s["s_dd"]}/5</td></tr>
+  </table>
+  <div style="margin-top:10px;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.05em;margin-bottom:4px">基本面 {s["fund_score"]}/60</div>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr><td style="color:#6b7280;padding:2px 0">收入增速 ({f"{rgrow*100:+.1f}%" if rgrow else "N/A"})</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_rev"],20)}">{s["s_rev"]}/20</td></tr>
+    <tr><td style="color:#6b7280;padding:2px 0">目标价上涨空间 ({upside_pct})</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_up"],20)}">{s["s_up"]}/20</td></tr>
+    <tr><td style="color:#6b7280;padding:2px 0">分析师评级 ({f"{rec_val:.2f}" if rec_val else "N/A"})</td><td style="text-align:right;font-weight:600;color:{_score_color(s["s_rat"],20)}">{s["s_rat"]}/20</td></tr>
+  </table>
 </div>'''
 
     # ── 换仓建议面板 ──
@@ -462,6 +467,9 @@ def score_symbol(symbol: str, fund_cache: dict) -> dict:
         "s_ma200":    s_ma200,
         "s_dd":       s_dd,
         "ma200_score": s_ma200,
+        "s_rev":      s_rev,
+        "s_up":       s_up,
+        "s_rat":      s_rat,
     }
 
 
