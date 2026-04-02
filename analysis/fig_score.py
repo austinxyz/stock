@@ -80,6 +80,8 @@ def calc_drawdown_from_high(closes: pd.Series) -> float:
 
 # ── 技术评分（高分 = 上升趋势，值得持有） ─────────────────────────────────────
 def score_rsi_hold(rsi: float) -> int:
+    import math
+    if math.isnan(rsi): return 0
     if 50 <= rsi <= 70: return 15
     if 35 <= rsi < 50:  return 8
     if rsi > 70:        return 8
@@ -141,7 +143,7 @@ def determine_recommendation(fig_rank: int, fig_score: int) -> dict:
             "action": "HOLD",
             "reason": f"FIG 在同类中排名第 {fig_rank}，基本面相对强劲，继续持有。",
         }
-    if fig_rank == 3 or fig_score >= 55:
+    if fig_rank == 3 or (fig_rank == 4 and fig_score >= 55):
         return {
             "action": "WATCH",
             "reason": f"FIG 排名第 {fig_rank}（评分 {fig_score}），持仓竞争力一般，保持关注。",
@@ -484,6 +486,10 @@ def main():
     if not results:
         print("错误：所有标的拉取失败")
         return
+
+    if len(results) < len(ALL_SYMBOLS):
+        missing = set(ALL_SYMBOLS) - {r["symbol"] for r in results}
+        print(f"  ⚠️  警告：{len(results)}/{len(ALL_SYMBOLS)} 个标的拉取成功，缺少 {', '.join(missing)}，排名可能不准确")
 
     results.sort(key=lambda x: x["total_score"], reverse=True)
     results = [{**r, "rank": i + 1} for i, r in enumerate(results)]

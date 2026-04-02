@@ -214,3 +214,13 @@ def test_save_csv_sorted_ascending(tmp_path, monkeypatch):
     rows = m.read_csv_rows()
     dates = [r["date"] for r in rows]
     assert dates == sorted(dates)
+
+# ── NaN RSI guard ──
+def test_score_rsi_hold_nan():
+    import math
+    assert m.score_rsi_hold(float('nan')) == 0
+
+# ── rank 5 high score still SELL ──
+def test_recommendation_sell_rank5_high_score():
+    r = m.determine_recommendation(fig_rank=5, fig_score=60)
+    assert r["action"] == "SELL"
