@@ -296,7 +296,7 @@ def generate_html(today: str, price: float, scores: list,
     <div>目标价: {"$"+str(round(tgt,2)) if tgt else "N/A"}</div>
     <div>回撤: {s["dd_pct"]:+.1f}%</div>
     <div>评级: {f"{rec_val:.1f}" if rec_val else "N/A"}</div>
-    <div>vs 200MA: {"↑" if s["ma200_val"] and price > s["ma200_val"] else "↓"}</div>
+    <div>vs 200MA: {"↑" if s.get("ma200_score", 0) == 10 else "↓"}</div>
     <div>增速: {f"{rgrow*100:+.1f}%" if rgrow else "N/A"}</div>
   </div>
 </div>'''
@@ -380,8 +380,6 @@ td{{padding:8px 12px;font-size:13px;border-top:1px solid #f3f4f6}}
   </div>
 </div>
 
-{rotation_html}
-
 <div class="section">同类横向排名</div>
 <table><thead><tr>
   <th>排名</th><th>标的</th><th>总分</th><th>技术面</th><th>基本面</th>
@@ -389,6 +387,8 @@ td{{padding:8px 12px;font-size:13px;border-top:1px solid #f3f4f6}}
 
 <div class="section">各标的详情</div>
 <div class="peer-grid">{peer_cards}</div>
+
+{rotation_html}
 
 <div class="chart-box">
   <div style="font-size:15px;font-weight:700;margin-bottom:12px">FIG 历史信心评分走势</div>
