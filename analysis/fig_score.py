@@ -486,8 +486,7 @@ def main():
         return
 
     results.sort(key=lambda x: x["total_score"], reverse=True)
-    for i, r in enumerate(results):
-        r["rank"] = i + 1
+    results = [{**r, "rank": i + 1} for i, r in enumerate(results)]
 
     fig_data = next((r for r in results if r["symbol"] == SYMBOL), None)
     if not fig_data:
@@ -500,7 +499,7 @@ def main():
 
     # 控制台输出
     SEP = "─" * 56
-    action_icon = {"HOLD": "🟢 继续持有", "WATCH": "🟡 保持关注", "SELL": "🔴 考虑换仓"}.get(rec["action"])
+    action_icon = {"HOLD": "🟢 继续持有", "WATCH": "🟡 保持关注", "SELL": "🔴 考虑换仓"}.get(rec["action"], rec["action"])
     print(f"\n{SEP}")
     print(f"  FIG 持仓分析  |  {today}")
     print(SEP)
