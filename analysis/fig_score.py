@@ -86,8 +86,8 @@ def score_rsi_hold(rsi: float) -> int:
     return 3
 
 def score_macd_hold(h_prev: float, h_now: float) -> int:
-    if h_prev < 0 and h_now > 0:   return 10   # 金叉
-    if h_now > 0 and h_now >= h_prev: return 10 # 正值扩张
+    if h_prev < 0 and h_now > 0:            return 10   # 金叉
+    if h_prev >= 0 and h_now >= h_prev and h_now > 0: return 10  # 正值扩张
     if h_now > 0:                   return 5    # 正值收窄
     return 0
 

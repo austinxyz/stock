@@ -13,6 +13,9 @@ def test_score_rsi_hold_neutral():
 def test_score_rsi_hold_overbought():
     assert m.score_rsi_hold(75) == 8
 
+def test_score_rsi_hold_boundary_70():
+    assert m.score_rsi_hold(70) == 15   # upper edge of healthy range
+
 def test_score_rsi_hold_weak():
     assert m.score_rsi_hold(28) == 3
 
