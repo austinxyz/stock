@@ -221,3 +221,197 @@ def save_csv(row: dict):
         w.writeheader()
         w.writerows(rows)
     os.replace(tmp, CSV_FILE)
+
+# ── HTML 报告 ──────────────────────────────────────────────────────────────────
+def _score_color(score: int, max_score: int) -> str:
+    pct = score / max_score if max_score else 0
+    if pct >= 0.7: return "#16a34a"
+    if pct >= 0.4: return "#ca8a04"
+    return "#dc2626"
+
+def _bar(score: int, max_score: int) -> str:
+    color = _score_color(score, max_score)
+    pct   = min(100, int(score / max_score * 100)) if max_score else 0
+    return (
+        f'<div style="background:#e5e7eb;border-radius:99px;height:6px;margin-top:4px">'
+        f'<div style="width:{pct}%;height:6px;border-radius:99px;background:{color}"></div></div>'
+    )
+
+def _medal(rank: int) -> str:
+    return {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
+
+def generate_html(today: str, price: float, scores: list,
+                  rec: dict, fund_cache: dict):
+    """
+    scores: list of dicts sorted by total_score desc, each with keys:
+      symbol, total_score, tech_score, fund_score,
+      rsi_val, ma200_val, dd_pct, rank
+    """
+    fig_data   = next(s for s in scores if s["symbol"] == SYMBOL)
+    total_value = SHARES * price
+    cost_basis  = SHARES * AVG_COST
+    pnl         = total_value - cost_basis
+    pnl_color   = "#16a34a" if pnl >= 0 else "#dc2626"
+
+    action_color = {"HOLD": "#16a34a", "WATCH": "#ca8a04", "SELL": "#dc2626"}.get(rec["action"], "#9ca3af")
+    action_icon  = {"HOLD": "🟢 继续持有", "WATCH": "🟡 保持关注", "SELL": "🔴 考虑换仓"}.get(rec["action"], rec["action"])
+
+    # ── 排名总表 ──
+    rank_rows = ""
+    for s in scores:
+        is_fig = s["symbol"] == SYMBOL
+        bg     = "background:#fffbeb;" if is_fig else ""
+        tc     = _score_color(s["total_score"], 100)
+        rank_rows += (
+            f'<tr style="{bg}">'
+            f'<td style="font-weight:700">{_medal(s["rank"])}</td>'
+            f'<td style="font-weight:{"800" if is_fig else "600"}">'
+            f'{"▶ " if is_fig else ""}{s["symbol"]}</td>'
+            f'<td style="font-weight:700;color:{tc}">{s["total_score"]}</td>'
+            f'<td>{s["tech_score"]}</td>'
+            f'<td>{s["fund_score"]}</td>'
+            f'</tr>'
+        )
+
+    # ── 各股评分卡片 ──
+    peer_cards = ""
+    for s in scores:
+        sym      = s["symbol"]
+        is_fig   = sym == SYMBOL
+        border   = "border:2px solid #f59e0b;" if is_fig else ""
+        tc       = _score_color(s["total_score"], 100)
+        fd       = fund_cache.get(sym, {})
+        tgt      = fd.get("target_price")
+        rec_val  = fd.get("recommendation")
+        rgrow    = fd.get("revenue_growth")
+        peer_cards += f'''<div style="background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08);{border}">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:16px;font-weight:800">{_medal(s["rank"])} {sym}</span>
+    <span style="font-size:22px;font-weight:700;color:{tc}">{s["total_score"]}<span style="font-size:12px;color:#9ca3af">/100</span></span>
+  </div>
+  <div style="font-size:12px;color:#6b7280;margin-bottom:6px">技术 {s["tech_score"]}/40 · 基本面 {s["fund_score"]}/60</div>
+  {_bar(s["total_score"], 100)}
+  <div style="margin-top:10px;font-size:12px;color:#374151;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+    <div>RSI: {s["rsi_val"]:.1f}</div>
+    <div>目标价: {"$"+str(round(tgt,2)) if tgt else "N/A"}</div>
+    <div>回撤: {s["dd_pct"]:+.1f}%</div>
+    <div>评级: {f"{rec_val:.1f}" if rec_val else "N/A"}</div>
+    <div>vs 200MA: {"↑" if s["ma200_val"] and price > s["ma200_val"] else "↓"}</div>
+    <div>增速: {f"{rgrow*100:+.1f}%" if rgrow else "N/A"}</div>
+  </div>
+</div>'''
+
+    # ── 换仓建议面板 ──
+    top_peer = next((s for s in scores if s["symbol"] != SYMBOL), None)
+    if rec["action"] == "SELL" and top_peer:
+        rotation_html = f'''<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+  <div style="font-size:15px;font-weight:700;margin-bottom:10px">🔄 换仓建议</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px">
+    <div><div style="font-size:12px;color:#6b7280">卖出</div><div style="font-size:18px;font-weight:700;color:#dc2626">FIG × {SHARES}股</div></div>
+    <div><div style="font-size:12px;color:#6b7280">预计金额</div><div style="font-size:18px;font-weight:700">${total_value:,.0f}</div></div>
+    <div><div style="font-size:12px;color:#6b7280">买入</div><div style="font-size:18px;font-weight:700;color:#16a34a">{top_peer["symbol"]}</div></div>
+    <div><div style="font-size:12px;color:#6b7280">税务</div><div style="font-size:18px;font-weight:700;color:#16a34a">$0（Roth IRA）</div></div>
+  </div>
+  <div style="font-size:12px;color:#6b7280">{rec["reason"]}</div>
+</div>'''
+    else:
+        rotation_html = f'''<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 24px;margin-bottom:24px">
+  <div style="font-size:16px;font-weight:700;color:{action_color}">{action_icon}</div>
+  <div style="font-size:12px;color:#6b7280;margin-top:6px">{rec["reason"]}</div>
+</div>'''
+
+    # ── 历史走势图 ──
+    rows       = read_csv_rows()
+    chart_rows = sorted(rows, key=lambda r: r["date"])[-60:]
+    chart_labels = json.dumps([r["date"] for r in chart_rows])
+    chart_scores = json.dumps([int(r["total_score"]) for r in chart_rows])
+    n = len(chart_rows)
+
+    # ── 历史记录表 ──
+    table_rows = ""
+    for r in sorted(rows, key=lambda x: x["date"], reverse=True)[:30]:
+        rc = _score_color(int(r["total_score"]), 100)
+        ac = {"SELL": "#dc2626", "WATCH": "#ca8a04", "HOLD": "#16a34a"}.get(r["recommendation"], "#9ca3af")
+        table_rows += (
+            f'<tr><td>{r["date"]}</td>'
+            f'<td style="font-weight:600;color:{rc}">{r["total_score"]}</td>'
+            f'<td>{r["tech_score"]}</td><td>{r["fund_score"]}</td>'
+            f'<td>${float(r["price"]):.2f}</td>'
+            f'<td>#{r["rank"]}</td>'
+            f'<td style="color:{ac}">{r["recommendation"]}</td></tr>'
+        )
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>FIG 持仓分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+body{{font-family:-apple-system,sans-serif;background:#f9fafb;margin:0;padding:24px;color:#111}}
+h1{{font-size:22px;font-weight:700;margin-bottom:4px}}
+.sub{{color:#6b7280;font-size:13px;margin-bottom:24px}}
+.cards{{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px}}
+.card{{background:#fff;border-radius:10px;padding:20px 24px;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:140px}}
+.card .label{{font-size:12px;color:#6b7280;margin-bottom:6px}}
+.card .val{{font-size:28px;font-weight:700}}
+.section{{font-size:15px;font-weight:700;margin:20px 0 12px}}
+.peer-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}}
+.chart-box{{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:24px}}
+table{{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;margin-bottom:24px}}
+th{{background:#f3f4f6;padding:10px 12px;text-align:left;font-size:12px;color:#374151}}
+td{{padding:8px 12px;font-size:13px;border-top:1px solid #f3f4f6}}
+</style></head><body>
+<h1>FIG (Figma) 持仓分析</h1>
+<div class="sub">更新时间：{today} &nbsp;·&nbsp; {SHARES}股 @ ${AVG_COST} 成本 &nbsp;·&nbsp; 🏦 Roth IRA</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">持仓信心评分</div>
+    <div class="val" style="color:{_score_color(fig_data['total_score'],100)}">{fig_data["total_score"]}<span style="font-size:14px;color:#9ca3af">/100</span></div>
+    <div style="font-size:11px;color:#6b7280;margin-top:4px">同类排名 {_medal(fig_data["rank"])}</div>
+  </div>
+  <div class="card"><div class="label">FIG 现价</div><div class="val">${price:.2f}</div></div>
+  <div class="card">
+    <div class="label">持仓市值</div>
+    <div class="val">${total_value:,.0f}</div>
+    <div style="font-size:11px;color:{pnl_color};margin-top:4px">{'+' if pnl>=0 else ''}${pnl:,.0f} 浮{'盈' if pnl>=0 else '亏'}</div>
+  </div>
+  <div class="card">
+    <div class="label">建议</div>
+    <div class="val" style="font-size:20px;color:{action_color}">{action_icon}</div>
+  </div>
+</div>
+
+{rotation_html}
+
+<div class="section">同类横向排名</div>
+<table><thead><tr>
+  <th>排名</th><th>标的</th><th>总分</th><th>技术面</th><th>基本面</th>
+</tr></thead><tbody>{rank_rows}</tbody></table>
+
+<div class="section">各标的详情</div>
+<div class="peer-grid">{peer_cards}</div>
+
+<div class="chart-box">
+  <div style="font-size:15px;font-weight:700;margin-bottom:12px">FIG 历史信心评分走势</div>
+  <canvas id="scoreChart" height="80"></canvas>
+</div>
+
+<div class="section">历史记录</div>
+<table><thead><tr>
+  <th>日期</th><th>总分</th><th>技术</th><th>基本面</th><th>价格</th><th>排名</th><th>建议</th>
+</tr></thead><tbody>{table_rows}</tbody></table>
+
+<script>
+new Chart(document.getElementById('scoreChart'),{{
+  type:'line',
+  data:{{labels:{chart_labels},datasets:[
+    {{label:'FIG 信心评分',data:{chart_scores},borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',fill:true,tension:0.3,pointRadius:2,borderWidth:2}},
+    {{label:'换仓阈值(55)',data:Array({n}).fill(55),borderColor:'#dc2626',borderDash:[6,4],pointRadius:0,borderWidth:1}}
+  ]}}}},
+  options:{{responsive:true,plugins:{{legend:{{position:'top'}}}},scales:{{y:{{min:0,max:100}},x:{{ticks:{{maxTicksLimit:10}}}}}}}}
+}})
+</script></body></html>"""
+
+    tmp = HTML_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(html)
+    os.replace(tmp, HTML_FILE)
