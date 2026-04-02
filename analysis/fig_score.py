@@ -415,3 +415,132 @@ new Chart(document.getElementById('scoreChart'),{{
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(html)
     os.replace(tmp, HTML_FILE)
+
+
+# ── 主程序 ─────────────────────────────────────────────────────────────────────
+def score_symbol(symbol: str, fund_cache: dict) -> dict:
+    """Fetch price data and compute full score for one symbol."""
+    df     = fetch(symbol)
+    closes = df["Close"].squeeze()
+    price  = float(closes.iloc[-1])
+    today  = str(df.index[-1].date())
+
+    rsi_val       = calc_rsi(closes)
+    h_now, h_prev = calc_macd(closes)
+    ma200_val     = calc_ma200(closes)
+    dd_pct        = calc_drawdown_from_high(closes)
+
+    s_rsi   = score_rsi_hold(rsi_val)
+    s_macd  = score_macd_hold(h_prev, h_now)
+    s_ma200 = score_ma200(price, ma200_val)
+    s_dd    = score_drawdown(dd_pct)
+    tech    = calc_tech_score(s_rsi, s_macd, s_ma200, s_dd)
+
+    fd       = fund_cache.get(symbol, {})
+    rgrow    = fd.get("revenue_growth") or 0.0
+    tgt      = fd.get("target_price") or 0.0
+    rec_mean = fd.get("recommendation") or 3.0
+
+    s_rev    = score_revenue_growth(rgrow)
+    s_up     = score_upside(tgt, price)
+    s_rat    = score_analyst_rating(rec_mean)
+    fund     = calc_fund_score(s_rev, s_up, s_rat)
+
+    return {
+        "symbol":     symbol,
+        "price":      price,
+        "today":      today,
+        "tech_score": tech,
+        "fund_score": fund,
+        "total_score": tech + fund,
+        "rsi_val":    rsi_val,
+        "ma200_val":  ma200_val,
+        "dd_pct":     dd_pct,
+        "s_rsi":      s_rsi,
+        "s_macd":     s_macd,
+        "s_ma200":    s_ma200,
+        "s_dd":       s_dd,
+        "ma200_score": s_ma200,
+    }
+
+
+def main():
+    print("\n正在拉取基本面数据...")
+    fund_cache = get_fundamentals()
+
+    print("正在评分各标的...")
+    results = []
+    for sym in ALL_SYMBOLS:
+        print(f"  {sym}...", end=" ", flush=True)
+        try:
+            r = score_symbol(sym, fund_cache)
+            results.append(r)
+            print(f"{r['total_score']}分")
+        except Exception as e:
+            print(f"失败 ({e})")
+        if sym != ALL_SYMBOLS[-1]:
+            time.sleep(2)
+
+    if not results:
+        print("错误：所有标的拉取失败")
+        return
+
+    results.sort(key=lambda x: x["total_score"], reverse=True)
+    for i, r in enumerate(results):
+        r["rank"] = i + 1
+
+    fig_data = next((r for r in results if r["symbol"] == SYMBOL), None)
+    if not fig_data:
+        print("错误：FIG 数据拉取失败")
+        return
+
+    rec   = determine_recommendation(fig_data["rank"], fig_data["total_score"])
+    today = fig_data["today"]
+    price = fig_data["price"]
+
+    # 控制台输出
+    SEP = "─" * 56
+    action_icon = {"HOLD": "🟢 继续持有", "WATCH": "🟡 保持关注", "SELL": "🔴 考虑换仓"}.get(rec["action"])
+    print(f"\n{SEP}")
+    print(f"  FIG 持仓分析  |  {today}")
+    print(SEP)
+    total_value = SHARES * price
+    pnl = total_value - SHARES * AVG_COST
+    print(f"  现价 ${price:.2f}  |  市值 ${total_value:,.0f}  |  浮{'盈' if pnl>=0 else '亏'} ${pnl:,.0f}")
+    print(SEP)
+    print("  同类排名:")
+    for r in results:
+        marker = "  ▶" if r["symbol"] == SYMBOL else "   "
+        print(f"{marker} #{r['rank']} {r['symbol']:5s}  {r['total_score']:>3}/100  (技术{r['tech_score']} 基本面{r['fund_score']})")
+    print(SEP)
+    print(f"  建议: {action_icon}")
+    print(f"  {rec['reason']}")
+    print(SEP)
+
+    # 保存 CSV（仅 FIG）
+    row = {
+        "date":         today,
+        "price":        f"{price:.2f}",
+        "tech_score":   fig_data["tech_score"],
+        "fund_score":   fig_data["fund_score"],
+        "total_score":  fig_data["total_score"],
+        "rsi_score":    fig_data["s_rsi"],
+        "macd_score":   fig_data["s_macd"],
+        "ma200_score":  fig_data["s_ma200"],
+        "dd_score":     fig_data["s_dd"],
+        "rsi_val":      f"{fig_data['rsi_val']:.2f}",
+        "ma200_val":    f"{fig_data['ma200_val']:.2f}",
+        "dd_pct":       f"{fig_data['dd_pct']:.2f}",
+        "rank":         fig_data["rank"],
+        "recommendation": rec["action"],
+    }
+    save_csv(row)
+
+    generate_html(today, price, results, rec, fund_cache)
+
+    print(f"\n  已保存 → {CSV_FILE}")
+    print(f"  报告   → {HTML_FILE}\n")
+
+
+if __name__ == "__main__":
+    main()
