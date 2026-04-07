@@ -83,3 +83,38 @@ def calc_fxi_macro(fxi_df: pd.DataFrame):
     fxi_20d_ago = float(closes.iloc[-21])
     fxi_momentum_pct = (fxi_now - fxi_20d_ago) / fxi_20d_ago * 100
     return fxi_vs_ma200_pct, fxi_momentum_pct
+
+# ── 评分规则（技术分，满分75） ──────────────────────────────────────────────────
+def score_drawdown(pct: float) -> int:
+    if pct <= -20: return 25
+    if pct <= -10: return 15
+    return 5
+
+def score_rsi(r: float) -> int:
+    if r <= 30: return 20
+    if r <= 40: return 12
+    if r <= 50: return 4
+    return 0
+
+def score_macd(prev: float, now: float) -> int:
+    if prev < 0 and now > 0: return 15
+    if now < 0 and now > prev: return 8
+    return 0
+
+def score_bb(z: float) -> int:
+    if z <= -2.0: return 15
+    if z <= -1.5: return 8
+    return 0
+
+# ── 评分规则（宏观分，满分25） ──────────────────────────────────────────────────
+def score_fxi_ma200(fxi_vs_ma200_pct: float) -> int:
+    """fxi_vs_ma200_pct = (fxi_price - ma200) / ma200 * 100"""
+    if fxi_vs_ma200_pct >= 0: return 15
+    if fxi_vs_ma200_pct >= -5: return 8
+    return 0
+
+def score_fxi_momentum(momentum_pct: float) -> int:
+    """momentum_pct = (fxi_now - fxi_20d_ago) / fxi_20d_ago * 100"""
+    if momentum_pct >= 3: return 10
+    if momentum_pct >= 0: return 5
+    return 0
