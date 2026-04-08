@@ -18,11 +18,11 @@ import requests
 
 # ── 用户参数 ────────────────────────────────────────────────────────────────────
 SYMBOL         = "OKLO"
-SHARES         = 122.48        # 2026-04-02 加仓后：101.022 + 21.458 股
-AVG_COST       = 91.70         # 平均成本（2026-04-02 更新）
+SHARES         = 142.842       # 2026-04-08 加仓后：122.48 + 20.362 股
+AVG_COST       = 85.63         # 平均成本（2026-04-08 更新）
 STOP_LOSS_PCT  = 0.70          # 最大亏损容忍（70%）
-STOP_LOSS_PRICE = round(AVG_COST * (1 - STOP_LOSS_PCT), 2)  # $27.51
-ADD_BUDGET     = 3_000         # 剩余加仓预算（已用 $2000）
+STOP_LOSS_PRICE = round(AVG_COST * (1 - STOP_LOSS_PCT), 2)
+ADD_BUDGET     = 2_000         # 剩余加仓预算（已用 $3000）
 LOOKBACK_DAYS  = 400
 
 SCRIPT_DIR       = os.path.dirname(os.path.abspath(__file__))

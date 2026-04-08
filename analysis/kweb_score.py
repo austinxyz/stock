@@ -17,9 +17,9 @@ import numpy as np
 SYMBOL        = "KWEB"
 MACRO_SYMBOL  = "FXI"
 TOTAL_BUDGET  = 5_000    # 追加总预算 ($)
-USED_BUDGET   = 0        # 已追加金额 ($)
-AVG_COST      = 28.04    # 平均成本（每股）
-TOTAL_SHARES  = 306.6    # 当前持仓股数
+USED_BUDGET   = 3_000    # 已追加金额 ($)
+AVG_COST      = 28.35    # 平均成本（2026-04-08 更新）
+TOTAL_SHARES  = 409.069  # 当前持仓股数（2026-04-08 加仓后）
 LOOKBACK_DAYS = 400
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
