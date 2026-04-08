@@ -38,6 +38,9 @@ Thumbs.db
 # Analysis reports (contain personal holdings data)
 analysis/report/
 
+# Prompt directory (local use only)
+prompt/
+
 # Logs
 *.log
 npm-debug.log*
