@@ -119,6 +119,9 @@ def score_fxi_momentum(momentum_pct: float) -> int:
     if momentum_pct >= 0: return 5
     return 0
 
+# ── 预警优先级 ────────────────────────────────────────────────────────────────
+_ALERT_PRIORITY = {"RED": 3, "ORANGE": 2, "YELLOW": 1, "NONE": 0}
+
 # ── 买入建议 ──────────────────────────────────────────────────────────────────
 def suggested_amount(score: int, remaining: float) -> float:
     if score >= 80: return remaining * 0.50
@@ -301,7 +304,7 @@ def main():
 
     # 预警
     alerts     = check_alerts(pnl_pct, fxi_df)
-    alert_level = alerts[0][0] if alerts else "NONE"
+    alert_level = max((level for level, _ in alerts), key=lambda x: _ALERT_PRIORITY.get(x, 0)) if alerts else "NONE"
     if alert_level == "RED":
         amount = 0.0
         buy_signal = False
