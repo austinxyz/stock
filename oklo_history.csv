@@ -1,3 +1,0 @@
-date,price,tech_score,fund_score,total_score,dd_score,rsi_score,macd_score,bb_score,dd_pct,rsi_val,bb_z,strategy,cash_runway_months,analyst_target,alert_level
-2026-01-01,10.00,30,20,50,10,10,5,5,-30.00,35.00,-1.500,HOLD,12.0,25.00,NONE
-2026-03-30,45.58,40,50,90,15,15,0,10,-73.83,28.34,-2.445,ADD,179.3,91.33,NONE

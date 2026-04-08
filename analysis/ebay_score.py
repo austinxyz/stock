@@ -16,7 +16,7 @@ import numpy as np
 SYMBOL        = "EBAY"
 ESPP_SHARES   = 1_957       # ESPP 持仓股数（每次卖出后手动更新）
 ESPP_AVG_COST = 30.00       # ESPP 每股成本
-RSU_SHARES    = 1_016       # RSU 持仓股数（每次卖出后手动更新）
+RSU_SHARES    = 818         # RSU 持仓股数（每次卖出后手动更新）
 RSU_AVG_COST  = 70.00       # RSU 归属价（成本基础）
 SELL_TARGET   = 150_000     # 3年总卖出目标 ($)
 ANNUAL_BUDGET = 40_000      # 今年年度卖出上限 ($)
@@ -453,6 +453,25 @@ def generate_html(today: str, price: float, sr: dict,
         "评级均值越高（偏向持有/卖出），说明华尔街整体对EBAY前景偏谨慎，支持分批卖出。（1=强买→5=强卖）",
         [("≥3.5 偏卖出", "10分"), ("≥2.5 中性", "5分"), ("<2.5 偏买入", "0分")], ra_active)
 
+    # ── 卖出记录表 ──
+    sell_log_rows = ""
+    for r in sorted(sell_log, key=lambda x: x.get("date", ""), reverse=True):
+        sell_log_rows += (
+            f'<tr><td>{r.get("date","")}</td>'
+            f'<td>{r.get("pool","")}</td>'
+            f'<td>{r.get("shares","")}</td>'
+            f'<td>${float(r.get("price",0)):.2f}</td>'
+            f'<td>${float(r.get("proceeds",0)):,.0f}</td>'
+            f'<td>${float(r.get("capital_gain",0)):,.0f}</td>'
+            f'<td style="color:#dc2626">${float(r.get("tax_estimate",0)):,.0f}</td>'
+            f'<td>{r.get("notes","")}</td></tr>'
+        )
+    if not sell_log_rows:
+        sell_log_rows = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">暂无卖出记录</td></tr>'
+    sell_log_table = f'''<table><thead><tr>
+  <th>日期</th><th>池子</th><th>股数</th><th>价格</th><th>金额</th><th>资本利得</th><th>预估税款</th><th>备注</th>
+</tr></thead><tbody>{sell_log_rows}</tbody></table>'''
+
     # ── 历史记录表 ──
     table_rows = ""
     for r in rows_desc[:60]:
@@ -530,6 +549,9 @@ td{{padding:8px 12px;font-size:13px;border-top:1px solid #f3f4f6}}
   <div style="font-size:15px;font-weight:700;margin-bottom:12px">历史评分走势（高分=好卖点）</div>
   <canvas id="scoreChart" height="80"></canvas>
 </div>
+
+<div class="section">卖出记录</div>
+{sell_log_table}
 
 <div class="section">历史记录</div>
 <table><thead><tr>
