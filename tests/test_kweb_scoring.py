@@ -65,10 +65,10 @@ def test_score_bb_neutral():
     assert m.score_bb(0.5) == 0
 
 def test_score_bb_boundary_2():
-    assert m.score_bb(-2.0) == 15
+    assert m.score_bb(-2.0) == 8   # at boundary, falls to next tier
 
 def test_score_bb_boundary_1_5():
-    assert m.score_bb(-1.5) == 8
+    assert m.score_bb(-1.5) == 0   # at boundary, no score
 
 # ── FXI vs MA200 评分 ──
 def test_score_fxi_ma200_above():

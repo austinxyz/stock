@@ -102,8 +102,8 @@ def score_macd(prev: float, now: float) -> int:
     return 0
 
 def score_bb(z: float) -> int:
-    if z <= -2.0: return 15
-    if z <= -1.5: return 8
+    if z < -2.0: return 15
+    if z < -1.5: return 8
     return 0
 
 # ── 评分规则（宏观分，满分25） ──────────────────────────────────────────────────
