@@ -216,12 +216,6 @@ public class PortfolioService {
         log.info("Deleted holding: {}", holdingId);
     }
 
-    private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userService.getUserIdByUsername(username);
-    }
-
     private PortfolioResponse toResponse(Portfolio portfolio) {
         return new PortfolioResponse(
                 portfolio.getId(),
@@ -273,7 +267,7 @@ public class PortfolioService {
                 stock.getName(),
                 holding.getQuantity(),
                 holding.getCostPrice(),
-                currentPrice != null ? currentPrice.doubleValue() : null,
+                currentPrice,
                 currency,
                 totalCost,
                 totalValue,
