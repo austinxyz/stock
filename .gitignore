@@ -38,6 +38,9 @@ Thumbs.db
 # Analysis reports (contain personal holdings data)
 analysis/report/
 
+# Screenshots (local use only)
+analysis/opinion/screenshot/
+
 # Prompt directory (local use only)
 prompt/
 
